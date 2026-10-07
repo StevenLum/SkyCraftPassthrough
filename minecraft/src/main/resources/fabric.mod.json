@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "passthrough_practice",
+  "version": "0.4.0",
+  "name": "Passthrough Practice",
+  "description": "Sends rendered player positions and receives sampled Skyrim collision and NPCs.",
+  "environment": "client",
+  "entrypoints": { "client": ["dev.passthrough.PassthroughClient"] },
+  "mixins": ["passthrough.mixins.json"],
+  "depends": { "fabricloader": ">=0.19.5", "minecraft": "26.3", "java": ">=25" }
+}

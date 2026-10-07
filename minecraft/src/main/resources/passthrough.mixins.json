@@ -1,0 +1,8 @@
+{
+  "required": true,
+  "package": "dev.passthrough.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": ["MinecraftRenderMixin"],
+  "mixins": ["BlockCollisionsMixin"],
+  "injectors": { "defaultRequire": 1 }
+}

@@ -1,0 +1,17 @@
+[package]
+name = "passthrough-link"
+version = "0.4.0"
+edition = "2024"
+publish = false
+
+[lib]
+name = "passthrough_link"
+crate-type = ["rlib", "cdylib"]
+
+[[bin]]
+name = "link-probe"
+path = "src/main.rs"
+
+[[bin]]
+name = "position-receiver"
+path = "src/position_receiver.rs"
