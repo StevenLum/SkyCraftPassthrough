@@ -1,3 +1,45 @@
+## 2026-10-11 Handover rules for Codex and Claude Code; first checkpoint commit
+
+**Changed:** AGENTS.md: new section "Handover between agents" (what must
+always be true, how to pick up, where things are, things that have cost time);
+rule 3 now carries the user's standing instruction to commit when they say all
+testing passed, on branch `dev`, without pushing; the log permission is marked
+as applying to both agents; the Environment line names both agents; the "Keep
+these files updated" list gains STATUS.md and the Backlog. New
+templates/HANDOVER-note.md. STATUS.md: its first section is now a handover note
+in that shape. README.md: the one remaining Windows-1252 dash byte (in "bytes
+240-255", 0.8.8 section) replaced by a UTF-8 dash, so the file is valid UTF-8
+like every other tracked file. No code or build change. Done by Claude Code.
+
+**Why:** The user asked how best to hand over between the two agents, then
+asked for documented rules so that either can continue the other's work at any
+state, and for a commit each time they report that all testing passed.
+
+**Tested how:** `git add -A --dry-run` before the first commit: 84 files, only
+.rs, .java, .json, .md, .ps1, .toml, .lock, .properties and .gitignore; a
+credential-pattern scan of those files found nothing; largest file 201 KB.
+Checked every tracked file for encoding and line endings. No build or game run
+was needed for these documents.
+
+**Result:** Branch `dev` created from `master`. Commit 28bf33d holds everything
+from 0.5.0 through the accepted 0.10.18 (84 files). A second commit holds these
+handover documents. `master` and GitHub are unchanged; nothing was pushed. All
+tracked files are UTF-8; all use Windows line endings.
+
+**Still broken / not tested:** The handover rules have not yet been exercised
+by a real switch to Codex; the first one will show what they miss. Codex has
+not been told about branch `dev` except through AGENTS.md. Notes that Claude
+Code keeps in its own memory folder outside the project are not visible to
+Codex; what mattered from them is now in AGENTS.md.
+
+**Commit:** 28bf33d (dev) Passthrough 0.5.0 to 0.10.18; the handover documents
+are in the commit that follows it.
+
+**Next:** To check: `git log --oneline -3` should show two new commits on
+`dev` above a9fc0fd, and `git status --short` should print nothing. At the
+next switch, the incoming agent follows "Picking up from the other agent" in
+AGENTS.md.
+
 ## 2026-10-11 0.10.18 test session verified
 
 **Changed:** README and STATUS record the result; DESIGN backlog gains the

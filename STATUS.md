@@ -1,3 +1,62 @@
+# Handover note: 2026-10-11, Claude Code
+
+This first section is the handover note (rules: AGENTS.md, "Handover between
+agents"; shape: templates/HANDOVER-note.md). Everything below it is history.
+
+## Right now
+- Step: none in progress. The last step, 0.10.18 (real left click; E opens
+  Skyrim containers), is accepted.
+- State: accepted
+- Doing or about to do: nothing. The handover rules were the last thing written.
+- Files being changed: none
+- Attempt: not applicable
+- Waiting on the user for: which step to do next
+
+## Versions
+- In the source files: 0.10.18, protocol 29
+- Built packages in dist/step5b: 0.10.18
+- Installed in the games, as far as known: 0.10.18 (the user tested it)
+- Last commit: on branch `dev`. 28bf33d holds everything through 0.10.18; the
+  commit after it adds the handover rules and this note. `master` is still the
+  0.4.0 state published on GitHub. Nothing has been pushed. Uncommitted work:
+  none once that second commit exists (check with `git status --short`).
+- Rust tests: 28 pass (22 unit, 5 connection, 1 position)
+
+## What the user last said
+"All tests passed. But I eventually want pressing E in skyrim to take
+precedent. Only open the minecraft inventory when E won't do anything in
+skyrim." Also: make documented handover rules so either agent can continue the
+other's work at any state, and "Commit every time I say all the testing passes
+from now on."
+
+## Next
+1. Wait for the user to choose. Candidates, in the order last suggested:
+   Skyrim's E taking precedence everywhere (the user wants this "eventually");
+   carrying refused small hits forward so continuous Skyrim damage counts;
+   protecting Skyrim's character while Minecraft is not active; the height
+   window. Details for each are in the Backlog section of docs/DESIGN.md.
+2. Whichever is chosen: write its plan at the top of docs/DESIGN.md first, and
+   update this note before touching code.
+
+## Known problems and findings not yet fixed
+- Rapid small Skyrim hits are mostly lost to Minecraft's half-second hit
+  cooldown (measured: 7 of 99 taken).
+- While Minecraft is paused or not the active window, Skyrim's character takes
+  damage directly and queued hits are dropped.
+- Minecraft's height covers Skyrim heights of about -11,600 to 15,000 with the
+  current saved origin; places outside are refused with a chat message.
+- A left click on Skyrim's map (fast-travel marker) has not been tried.
+- The Minecraft side (Java) has no automated tests; only the Rust side does.
+- Two different Skyrim places whose record IDs share the same low bits would
+  share a Minecraft region (not detected, not yet seen).
+
+## Given in chat this session and already written into AGENTS.md
+- Commit each time the user says all the testing passed, on `dev`, never push
+  unless asked (both agents).
+- Running the log collector and reading its reports is allowed for both agents.
+- Run the Rust tests before every build (the build script does it).
+- The handover rules themselves.
+
 # 0.10.18 accepted (2026-10-11); nothing in progress
 
 User: "All tests passed." Report 20261011-101205: protocol 29 both sides, zero

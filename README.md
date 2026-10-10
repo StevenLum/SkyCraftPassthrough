@@ -995,7 +995,7 @@ Earlier version sections below are historical implementation/test notes.
 0.8.7 failed to activate the user's existing bridge. Logs show eligible=false
 before admission. Fixed an early pairing lookup caching world-not-ready as a
 permanent rejection, and an independently found wire bug where expected lineage
-bytes overlapped renderer status. Pairing now uses unused bytes 240–255; protocol
+bytes overlapped renderer status. Pairing now uses unused bytes 240â€“255; protocol
 17 isolates the broken encoding. Rust/Fabric builds passed. User confirms normal
 movement/rendering; report 20261009-205054 confirms eligible=true, matched IDs and
 native allowed=true. User testing and report 20261009-205719 also confirm missing-ID
