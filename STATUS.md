@@ -16,10 +16,11 @@ agents"; shape: templates/HANDOVER-note.md). Everything below it is history.
 - In the source files: 0.10.18, protocol 29
 - Built packages in dist/step5b: 0.10.18
 - Installed in the games, as far as known: 0.10.18 (the user tested it)
-- Last commit: on branch `dev`. 28bf33d holds everything through 0.10.18; the
-  commit after it adds the handover rules and this note. `master` is still the
-  0.4.0 state published on GitHub. Nothing has been pushed. Uncommitted work:
-  none once that second commit exists (check with `git status --short`).
+- Last commit: on branch `dev`. 28bf33d holds everything through 0.10.18;
+  859e429 adds the handover rules and this note; one more commit after it
+  corrects a wrong statement about line endings. `master` is still the 0.4.0
+  state published on GitHub. Nothing has been pushed. Uncommitted work: none
+  (check with `git status --short`).
 - Rust tests: 28 pass (22 unit, 5 connection, 1 position)
 
 ## What the user last said

@@ -145,8 +145,12 @@ In a newest-first file, add at the top and leave older text as it is.
 - When a change adds a new state (a place, a menu context, a generation), look
   for code that may still hold data from the old state. Left-over data must be
   skipped, not treated as an error that switches a feature off.
-- Every project text file is UTF-8 with Windows line endings. After editing,
-  check that both are still true.
+- Every tracked file is UTF-8; keep it that way and check after editing (an
+  older Windows-1252 dash character once got damaged by an edit). Line endings
+  are a mix of Windows and Unix style in the working folder and that is
+  harmless: Git stores them all one way (`core.autocrlf=true`). Do not "fix"
+  line endings. In Git Bash, `grep $'\r$'` reports Windows endings on every
+  file whether or not they are there; count bytes with a script instead.
 - Game logs are in the ignored `logs` folder. Search them with
   `rg --no-ignore`; a plain search silently skips them.
 - The collector keeps scene, error and connection lines only. When the bridge

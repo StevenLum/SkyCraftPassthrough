@@ -18,13 +18,22 @@ state, and for a commit each time they report that all testing passed.
 **Tested how:** `git add -A --dry-run` before the first commit: 84 files, only
 .rs, .java, .json, .md, .ps1, .toml, .lock, .properties and .gitignore; a
 credential-pattern scan of those files found nothing; largest file 201 KB.
-Checked every tracked file for encoding and line endings. No build or game run
-was needed for these documents.
+Checked every tracked file for encoding by decoding its bytes. No build or game
+run was needed for these documents.
 
 **Result:** Branch `dev` created from `master`. Commit 28bf33d holds everything
 from 0.5.0 through the accepted 0.10.18 (84 files). A second commit holds these
 handover documents. `master` and GitHub are unchanged; nothing was pushed. All
-tracked files are UTF-8; all use Windows line endings.
+tracked files are UTF-8.
+
+Correction made the same day, in a third commit: the first version of this
+entry and of AGENTS.md also said that every file uses Windows line endings.
+That was wrong. Counting bytes shows 56 tracked files with Unix endings, 32
+with Windows endings and 12 with both, a mix that predates this session and is
+harmless because Git stores them one way. My check had used `grep` in Git
+Bash, which reported Windows endings on every file, including a test file
+that had none. Every line-ending count I made that way this session was
+meaningless; no file content was changed because of it.
 
 **Still broken / not tested:** The handover rules have not yet been exercised
 by a real switch to Codex; the first one will show what they miss. Codex has
