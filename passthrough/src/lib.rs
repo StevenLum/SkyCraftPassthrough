@@ -7,18 +7,30 @@ mod windows;
 pub mod position;
 mod native;
 mod skse;
+mod save_identity;
+mod saved_origin;
+mod interaction;
+mod menu_input;
+mod recovery;
+mod damage;
+mod attack;
+mod death;
 mod world;
 mod world_export;
 mod look;
+mod overlay;
+mod overlay_draw;
+mod scene;
+mod scene_draw;
 
 use std::io;
 use std::time::{SystemTime, UNIX_EPOCH};
 use windows::SharedMemory;
 
-pub const PROTOCOL_VERSION: u32 = 4;
+pub const PROTOCOL_VERSION: u32 = 29;
 pub const HEARTBEAT_TIMEOUT_MS: u64 = 2_000;
 pub const POLL_INTERVAL_MS: u64 = 100;
-const RECORD_SIZE: usize = 256;
+const RECORD_SIZE: usize = 456;
 const MAGIC: &[u8; 8] = b"PASSLNK2";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -68,6 +80,8 @@ struct Slot {
 struct Record {
     slots: [Slot; 2],
     position: position::Sample,
+    render_ms:u64, render_session:u64, render_ready:u32,
+    menu:menu_input::Status,
 }
 
 // Fixed byte layout, never a Rust struct copied across processes:
@@ -94,6 +108,10 @@ impl Record {
             };
         }
         record.position = position::Sample::decode(bytes);
+        record.render_ms=read_u64(bytes,216);
+        record.render_session=read_u64(bytes,224);
+        record.render_ready=read_u32(bytes,232);
+        record.menu=menu_input::Status::decode(bytes);
         Ok(record)
     }
 
@@ -114,6 +132,10 @@ impl Record {
             }
         }
         self.position.encode(&mut bytes);
+        bytes[216..224].copy_from_slice(&self.render_ms.to_le_bytes());
+        bytes[224..232].copy_from_slice(&self.render_session.to_le_bytes());
+        bytes[232..236].copy_from_slice(&self.render_ready.to_le_bytes());
+        self.menu.encode(&mut bytes);
         bytes
     }
 }
@@ -137,6 +159,25 @@ pub struct Endpoint {
 }
 
 impl Endpoint {
+    pub(crate) fn overlay_ready(&self)->io::Result<bool> {
+        self.memory.update(|r| {
+            let now=windows::now_ms(); let sky=r.slots[0]; let mc=r.slots[1];
+            Ok(self.role==Role::Minecraft && !self.closed && mc.session==self.session
+                && sky.pid!=0 && sky.protocol==PROTOCOL_VERSION && mc.protocol==PROTOCOL_VERSION
+                && mc.acknowledged_session==sky.session && sky.acknowledged_session==mc.session
+                && r.render_session==sky.session && r.render_ready==1 && r.render_ms<=now && now-r.render_ms<500)
+        })
+    }
+    pub(crate) fn menu_status(&self)->io::Result<menu_input::Status> {
+        self.memory.update(|r| {
+            let now=windows::now_ms();let m=r.menu;
+            let valid=self.role==Role::Minecraft && r.slots[1].session==self.session
+                && m.sky==r.slots[0].session && m.mc==self.session && m.world==r.position.world
+                && r.slots[0].protocol==PROTOCOL_VERSION && m.ms<=now && now-m.ms<=250;
+            Ok(if valid {m} else {menu_input::Status::default()})
+        })
+    }
+    pub(crate) fn generation(&self)->u64 { self.session }
     pub fn open(name: &str, role: Role, protocol: u32) -> io::Result<Self> {
         if name.is_empty() || name.len() > 64
             || !name.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-' || c == b'_')
@@ -305,7 +346,7 @@ mod tests {
         record.slots[1] = Slot { pid: 0x11223344, protocol: 7,
             session: 8, heartbeat_ms: 9, acknowledged_session: 10, heartbeat_count: 11 };
         let bytes = record.encode();
-        assert_eq!(&bytes[0..16], b"PASSLNK2\x02\0\0\0\0\x01\0\0");
+        assert_eq!(&bytes[0..16], b"PASSLNK2\x02\0\0\0\xc8\x01\0\0");
         assert_eq!(&bytes[80..84], &[0x44, 0x33, 0x22, 0x11]);
         assert_eq!(read_u64(&bytes, 104), 10);
         assert_eq!(read_u64(&bytes, 112), 11);
@@ -323,3 +364,4 @@ mod tests {
         }
     }
 }
+

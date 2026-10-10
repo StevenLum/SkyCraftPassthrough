@@ -14,7 +14,7 @@ struct ReadLock { object:Object,unlock:usize }
 impl Drop for ReadLock { fn drop(&mut self) { unsafe {
     let f:unsafe extern "C" fn(Object)=mem::transmute(self.unlock); f(self.object);
 } } }
-struct ActorRef(Object);
+pub(crate) struct ActorRef(pub(crate) Object);
 impl Drop for ActorRef { fn drop(&mut self) { unsafe {
     if self.0.is_null() { return; }
     // TESObjectREFR's BSHandleRefObject base starts at 0x20.
@@ -29,9 +29,12 @@ impl Drop for ActorRef { fn drop(&mut self) { unsafe {
 pub struct Exporter {
     epoch:u64,sequence:u64,cell:usize,center:[f64;3],ray:usize,
     boxes:Vec<[f64;6]>,started:Option<Instant>,rays:usize,hits:usize,clipped:usize,
+    previous:Option<Sample>,velocity:[f64;3],lead:[f64;3],horizon:f64,last_scan_ms:f64,
+    location:Option<(u32,u32)>,
 }
 impl Exporter {
-    pub fn reset(&mut self) { self.epoch=self.epoch.wrapping_add(1); self.cell=0; self.started=None; self.boxes.clear(); }
+    pub fn reset(&mut self) { self.epoch=self.epoch.wrapping_add(1); self.cell=0; self.started=None; self.boxes.clear();
+        self.location=None; self.previous=None; self.velocity=[0.0;3]; self.lead=[0.0;3]; self.last_scan_ms=0.0; }
     pub fn empty(&mut self)->Snapshot {
         self.sequence+=1; Snapshot{epoch:self.epoch,sequence:self.sequence,..Snapshot::default()}
     }
@@ -48,8 +51,25 @@ impl Exporter {
         let scale=unsafe { *(api.scale as *const f32) } as f64;
         if !scale.is_finite() || !(0.001..0.1).contains(&scale) { return Err(io::Error::other("invalid Havok world scale")); }
         if self.cell!=cell as usize { self.reset(); self.cell=cell as usize; }
+        if let Some(previous)=self.previous {
+            if sample.frame!=previous.frame {
+                let dt=sample.sent_ms.saturating_sub(previous.sent_ms);
+                if sample.sender==previous.sender && sample.world==previous.world
+                    && sample.frame>previous.frame && (1..=250).contains(&dt) {
+                    let v:[f64;3]=std::array::from_fn(|j|(sample.mc[j]-previous.mc[j])*1000.0/dt as f64);
+                    self.velocity=if v.iter().all(|v|v.is_finite()) && v[0].hypot(v[2])<=32.0 && v[1].abs()<=40.0 {v} else {[0.0;3]};
+                } else { self.velocity=[0.0;3]; }
+                self.previous=Some(sample);
+            }
+        } else { self.previous=Some(sample); }
         if self.started.is_none() {
-            self.center=sample.mc.map(|x|(x*2.0).floor()/2.0); self.center[1]+=1.0;
+            self.horizon=(self.last_scan_ms/1000.0+0.15).clamp(0.2,0.5);
+            self.lead=self.velocity.map(|v|v*self.horizon);
+            let horizontal=self.lead[0].hypot(self.lead[2]);
+            if horizontal>1.5 { self.lead[0]*=1.5/horizontal; self.lead[2]*=1.5/horizontal; }
+            self.lead[1]=self.lead[1].clamp(-0.75,0.75);
+            self.center=std::array::from_fn(|j|((sample.mc[j]+self.lead[j])*2.0).floor()/2.0);
+            self.center[1]+=1.0;
             self.ray=0; self.rays=0; self.hits=0; self.clipped=0; self.boxes.clear(); self.started=Some(Instant::now());
         }
         // 16x16 rays for each of six faces. At most eight hits per ray.
@@ -100,9 +120,28 @@ impl Exporter {
         }
         if self.ray<1536 { return Ok(None); }
         let elapsed=self.started.take().unwrap().elapsed().as_millis();
+        self.last_scan_ms=elapsed as f64;
         self.sequence+=1;
         let mut snapshot=Snapshot{recipient:sample.sender,world:sample.world,epoch:self.epoch,
-            sequence:self.sequence,active:true,boxes:mem::take(&mut self.boxes),..Snapshot::default()};
+            sequence:self.sequence,active:true,center:self.center,radius:4.0,boxes:mem::take(&mut self.boxes),..Snapshot::default()};
+        // CommonLib TESForm::formID +0x14; TESObjectCELL worldSpace +0x128
+        // for AE >=1.6.629, including the supported 1.7.104 runtime.
+        snapshot.admitted=true;
+        // CommonLib AsActorValueOwner: +0xB8 since 1.6.629, including 1.7.104; slot 1.
+        let owner=unsafe {player.add(0xB8)};
+        let table:*const usize=unsafe {read(owner,0)};
+        let get_health:unsafe extern "C" fn(Object,u32)->f32=unsafe {mem::transmute(*table.add(1))};
+        snapshot.player_health=unsafe {get_health(owner,24)};
+        snapshot.save_id=crate::save_identity::published_id();
+        snapshot.cell_id=unsafe { read(cell,0x14) };
+        let worldspace:Object=unsafe { read(cell,0x128) };
+        snapshot.worldspace_id=if worldspace.is_null() {0} else {unsafe { read(worldspace,0x14) }};
+        let location=(snapshot.cell_id,snapshot.worldspace_id);
+        if self.location!=Some(location) {
+            write_log(Role::Skyrim,format!("event=SCENE_LOCATION_SEND epoch={} snapshot={} cell_id={:08X} worldspace_id={:08X}",
+                self.epoch,self.sequence,location.0,location.1))?;
+            self.location=Some(location);
+        }
         unsafe { self.npcs(api,player,cell,anchor,sample,&mut snapshot)?; }
         write_log(Role::Skyrim,format!("event=WORLD_SCAN epoch={} snapshot={} rays={} hits={} hit_limit_rays={} elapsed_ms={elapsed} radius_blocks=4 spacing=0.5",
             self.epoch,self.sequence,self.rays,self.hits,self.clipped))?;
@@ -111,6 +150,8 @@ impl Exporter {
             snapshot.active=false; snapshot.boxes.clear(); snapshot.npcs.clear();
             write_log(Role::Skyrim,"event=WORLD_DISCARDED reason=scan_too_old_or_player_outside")?;
         }
+        write_log(Role::Skyrim,format!("event=SCENE_WORLD_SCAN epoch={} snapshot={} active={} elapsed_ms={elapsed} rays={} boxes={} center={:?} lead={:?} horizon_ms={} radius=4 velocity_end={:?}",
+            self.epoch,self.sequence,snapshot.active,self.rays,snapshot.boxes.len(),self.center,self.lead,self.horizon*1000.0,self.velocity))?;
         Ok(Some(snapshot))
     }
     unsafe fn npcs(&self,api:&Api,player:Object,cell:Object,anchor:Anchor,sample:Sample,s:&mut Snapshot)->io::Result<()> {

@@ -1,8 +1,11 @@
 [package]
 name = "passthrough-link"
-version = "0.4.0"
+version = "0.10.18"
 edition = "2024"
 publish = false
+
+[dependencies]
+windows = { version = "0.62", features = ["Win32_Graphics_Direct3D", "Win32_Graphics_Direct3D_Fxc", "Win32_Graphics_Direct3D11", "Win32_Graphics_Dxgi", "Win32_Graphics_Dxgi_Common"] }
 
 [lib]
 name = "passthrough_link"
@@ -15,3 +18,10 @@ path = "src/main.rs"
 [[bin]]
 name = "position-receiver"
 path = "src/position_receiver.rs"
+
+
+
+
+
+
+

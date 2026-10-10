@@ -75,12 +75,27 @@ pub(crate) struct SharedMemory {
 }
 
 impl SharedMemory {
+    pub(crate) fn read_scene(&self,maximum:usize,last:Option<(u64,u64)>)->io::Result<Vec<u8>> {
+        let wait=unsafe { WaitForSingleObject(self.mutex.0,0) };
+        if wait==WAIT_TIMEOUT { return Err(io::Error::new(io::ErrorKind::TimedOut,"scene busy")); }
+        if wait!=WAIT_OBJECT_0 && wait!=WAIT_ABANDONED { return Err(io::Error::last_os_error()); }
+        let _lock=Lock(&self.mutex);
+        if wait==WAIT_ABANDONED { unsafe { ptr::write_bytes(self.view.0.cast::<u8>(),0,128); } return Ok(Vec::new()); }
+        let mut header=[0_u8;128];
+        unsafe { ptr::copy_nonoverlapping(self.view.0.cast(),header.as_mut_ptr(),128); }
+        if header[..8]==[0;8] || last==Some((crate::read_u64(&header,8),crate::read_u64(&header,24))) { return Ok(Vec::new()); }
+        let size=crate::read_u32(&header,48) as usize;
+        if size>maximum { return Err(io::Error::other("scene packet exceeds mailbox")); }
+        let mut bytes=vec![0;128+size];
+        unsafe { ptr::copy_nonoverlapping(self.view.0.cast(),bytes.as_mut_ptr(),bytes.len()); }
+        Ok(bytes)
+    }
     pub(crate) fn open(session: &str) -> io::Result<Self> {
         Self::open_sized(session, RECORD_SIZE)
     }
 
     pub(crate) fn open_sized(session: &str, size: usize) -> io::Result<Self> {
-        let prefix = format!("Local\\PassthroughPractice_link4_{session}");
+        let prefix = format!("Local\\PassthroughPractice_link29_{session}");
         let mutex_name = wide(&format!("{prefix}_lock"));
         let map_name = wide(&format!("{prefix}_memory"));
         // Local namespace: same Windows login session, no administrator privileges.
@@ -100,6 +115,25 @@ impl SharedMemory {
     }
 
     // Snapshot buffers are copied while locked, then decoded off shared memory.
+    pub(crate) fn read_overlay(&self)->io::Result<Vec<u8>> {
+        let wait=unsafe { WaitForSingleObject(self.mutex.0,0) };
+        if wait==WAIT_TIMEOUT { return Err(io::Error::new(io::ErrorKind::TimedOut,"overlay busy")); }
+        if wait!=WAIT_OBJECT_0 && wait!=WAIT_ABANDONED { return Err(io::Error::last_os_error()); }
+        let _lock=Lock(&self.mutex);
+        if wait==WAIT_ABANDONED {
+            unsafe { ptr::write_bytes(self.view.0.cast::<u8>(),0,80); }
+            return Err(io::Error::other("overlay publisher died while writing"));
+        }
+        let mut header=[0_u8;80];
+        unsafe { ptr::copy_nonoverlapping(self.view.0.cast(),header.as_mut_ptr(),80); }
+        if header[..8]==[0;8] { return Ok(Vec::new()); }
+        let size=u32::from_le_bytes(header[48..52].try_into().unwrap()) as usize;
+        if size>crate::overlay::MAX_BYTES { return Err(io::Error::other("invalid overlay byte count")); }
+        let mut bytes=vec![0;80+size];
+        unsafe { ptr::copy_nonoverlapping(self.view.0.cast(),bytes.as_mut_ptr(),bytes.len()); }
+        Ok(bytes)
+    }
+
     pub(crate) fn blob(&self, bytes: &mut [u8], write: bool) -> io::Result<()> {
         let wait = unsafe { WaitForSingleObject(self.mutex.0, 5) };
         if wait == WAIT_TIMEOUT { return Err(io::Error::new(io::ErrorKind::TimedOut,"world snapshot lock timed out")); }
@@ -147,3 +181,4 @@ impl SharedMemory {
         Ok(result)
     }
 }
+

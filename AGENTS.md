@@ -30,6 +30,12 @@ Passthrough mod from minecraft to skyrim
 - **Log, don't look.** You cannot see the game. Instrument instead: write
   positions, counts, timings, and state transitions to a log file so you can
   verify from the numbers. Do not try to visually inspect the game.
+- **Collect logs directly.** The user authorizes running
+  `.\tools\collect-scene-logs.ps1` and reading its collected game logs whenever
+  needed for this project, without asking the user to collect or supply paths.
+- **Test before build.** Run the Rust tests before every build and do not build
+  on a failure. `.\tools\build-step5b.ps1` runs them first by itself. When a
+  change adds a rule the packets or adapters must obey, add a test for it.
 - **Tell me how to test it.** After every change, say the exact command to run and
   what I should see. "Done" without a test procedure is not done.
 - **Ask before large refactors.** If you think the architecture is wrong, say so
@@ -44,14 +50,15 @@ Passthrough mod from minecraft to skyrim
 - If you are not sure, say you are not sure. A confident wrong answer costs me
   hours.
 - If you hit something you cannot solve after two real attempts, stop and write
-  up `STATUS.md` (see `STATUS-handoff.md`) instead of trying variations at random.
+  up `STATUS.md` (see `templates/STATUS-handoff.md`) instead of trying variations
+  at random.
 - Record failures, not just successes. A dead end I can see is worth more than a
   dead end I have to watch you repeat.
 
 ## Keep these files updated
 
 - `MODLOG.md`: add an entry after every change. Template in
-  `MODLOG-template.md`.
+  `templates/MODLOG-template.md`.
 - `docs/DESIGN.md`: how the project works, in plain language. Update when the
   architecture changes, not on every commit.
 - `README.md`: the "what works / what doesn't work" list. Test before you claim

@@ -2,7 +2,13 @@
   "required": true,
   "package": "dev.passthrough.mixin",
   "compatibilityLevel": "JAVA_25",
-  "client": ["MinecraftRenderMixin"],
-  "mixins": ["BlockCollisionsMixin"],
+  "client": ["SkyrimAttackMixin", "SkyrimCursorMixin", "SkyrimSavesMixin", "InteractionOptionsMixin", "MinecraftRenderMixin", "OverlayLevelMixin", "AtlasAccess", "SpriteAccess", "TerrainPickMixin", "BridgeWorldScreenMixin"],
+  "mixins": ["BlockCollisionsMixin", "TerrainPlaceMixin", "TerrainBucketMixin", "FlatSettingsAccess", "BridgeMotionMixin", "BridgeServerMoveMixin", "BridgeChunkMixin", "BridgeRulesMixin", "BridgeInventoryMixin", "BridgeDeathMixin"],
   "injectors": { "defaultRequire": 1 }
 }
+
+
+
+
+
+

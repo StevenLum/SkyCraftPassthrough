@@ -1,0 +1,15 @@
+package dev.passthrough.mixin;
+import dev.passthrough.OverlayCapture;
+import net.minecraft.client.renderer.LevelRenderer;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+@Mixin(LevelRenderer.class)
+public abstract class OverlayLevelMixin {
+    @Inject(method="render(Lcom/mojang/blaze3d/resource/GraphicsResourceAllocator;ZLnet/minecraft/client/renderer/state/level/CameraRenderState;Lcom/mojang/renderpearl/api/buffers/GpuBufferSlice;Lorg/joml/Vector4f;ZZ)V",at=@At("HEAD"),cancellable=true)
+    private void passthrough$transparentWorld(CallbackInfo ci) {
+        if (OverlayCapture.clearWorld()) ci.cancel();
+    }
+}

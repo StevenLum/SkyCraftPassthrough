@@ -1,0 +1,12 @@
+{
+  "key.passthrough.interact": "Interact with Skyrim",
+  "key.passthrough.menu_up": "Skyrim menu: up",
+  "key.passthrough.menu_down": "Skyrim menu: down",
+  "key.passthrough.menu_left": "Skyrim menu: left",
+  "key.passthrough.menu_right": "Skyrim menu: right",
+  "key.passthrough.menu_accept": "Skyrim menu: confirm",
+  "key.passthrough.menu_cancel": "Skyrim menu: back",
+  "key.passthrough.menu_click": "Skyrim menu: click at pointer",
+  "key.passthrough.quicksave": "Skyrim quicksave",
+  "key.passthrough.quickload": "Skyrim quickload"
+}

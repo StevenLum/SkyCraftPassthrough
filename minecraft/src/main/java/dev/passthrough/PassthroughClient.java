@@ -14,6 +14,9 @@ public final class PassthroughClient implements ClientModInitializer {
     private static long frame;
     private static boolean initialized;
     private static boolean failed;
+    static NativeLink overlayLink() { return initialized && !failed ? link : null; }
+    static long worldId() { return world; }
+    static boolean sameLevel(Object level) { return level==lastLevel; }
 
     @Override public void onInitializeClient() {
         try {
@@ -38,10 +41,12 @@ public final class PassthroughClient implements ClientModInitializer {
                 initialized = true;
             }
             Minecraft mc = Minecraft.getInstance();
-            if (mc.level != lastLevel) { SkyCollision.clear(); lastLevel = mc.level; ++world; }
+            if (mc.level != lastLevel) { BridgeDamage.reset();BridgeRecovery.clear();SkyCollision.clear(); lastLevel = mc.level; ++world; }
             var server = mc.getSingleplayerServer();
+            BridgeWorld.notice(mc);
             boolean active = mc.player != null && mc.level != null && server != null
-                && !server.isPublished() && !mc.isPaused() && !mc.player.isDeadOrDying();
+                && BridgeWorld.eligible(mc.level) && !server.isPublished() && !mc.isPaused() && !mc.player.isDeadOrDying();
+            SkyrimMenus.refresh(link,active);
             double partial = 0.0, x = 0.0, y = 0.0, z = 0.0, yaw = 0.0, pitch = 0.0;
             if (active) {
                 float fraction = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
@@ -52,12 +57,17 @@ public final class PassthroughClient implements ClientModInitializer {
             }
             int result = link.send(world, ++frame, partial, x, y, z, yaw, pitch, active);
             if (result < 0) throw new IllegalStateException("Native position send failed; see project logs/step2");
-            if (active && result > 0) SkyCollision.accept(link.receiveWorld(), mc.level, server, world);
-            else SkyCollision.clear();
+            if (active && result > 0 && !SkyrimMenus.active()) SkyCollision.accept(link.receiveWorld(), mc.level, server, world);
+            else {BridgeRecovery.clear();SkyCollision.clear();}
+            OverlayCapture.afterRender(active && result>0 && SkyCollision.admitted());
+            SceneCapture.frame(active && result>0 && SkyCollision.admitted());
         } catch (Throwable error) {
             failed = true;
+            BridgeRecovery.clear();
             SkyCollision.clear();
+            OverlayCapture.disable(error);
             LOG.error("Passthrough sender disabled", error);
         }
     }
 }
+

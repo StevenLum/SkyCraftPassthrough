@@ -4,9 +4,9 @@
 !/AGENTS.md
 !/README.md
 !/MODLOG.md
-!/MODLOG-template.md
 !/STATUS.md
-!/STATUS-handoff.md
+!/templates/
+!/templates/*.md
 !/rust-toolchain.toml
 !/docs/
 !/docs/*.md
