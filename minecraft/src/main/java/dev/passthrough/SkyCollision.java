@@ -18,13 +18,22 @@ public final class SkyCollision {
     public record Shape(AABB box, VoxelShape voxel, boolean terrain) {}
     private record Field(long sender, long epoch, long sequence, long expires,
         Level clientLevel, IntegratedServer server, ResourceKey<Level> dimension,
-        Map<BlockPos,List<Shape>> buckets, int boxes, int npcs, AABB coverage, int cellId, int worldspaceId) {}
+        Map<BlockPos,List<Shape>> buckets, int boxes, int npcs, AABB coverage, int cellId, int worldspaceId, boolean seated) {}
     private static volatile Field field;
     private static volatile long lastRender;
     private static final AtomicLong clientLog = new AtomicLong(), serverLog = new AtomicLong();
     private static final AtomicLong coverageLog = new AtomicLong();
     private static final AtomicLong targetClientLog = new AtomicLong(), targetServerLog = new AtomicLong();
     private SkyCollision() {}
+    /**
+     * Questions Minecraft asks that Skyrim's shapes must stay out of, per thread:
+     * SERVER_CHECK while the local server checks a step the player reported (it would send
+     * the player back for touching a shape that moved under them), POSE_CHECK while
+     * Minecraft asks whether the player fits standing (it would force a crouch or a crawl).
+     */
+    public static final int SERVER_CHECK=0,POSE_CHECK=1;
+    private static final ThreadLocal<boolean[]> quiet=ThreadLocal.withInitial(()->new boolean[2]);
+    public static void quiet(int question,boolean on) {quiet.get()[question]=on;}
     public static void clear() { field = null; lastRender = 0; TerrainPlacement.clear(); BridgeDamage.clear(); SkyrimAttack.clear(); }
     public record TerrainHit(net.minecraft.world.phys.BlockHitResult hit,net.minecraft.world.phys.Vec3 surface,long sender,long epoch,long snapshot) {}
     private static TerrainHit targetMiss(Level level,String reason,net.minecraft.world.phys.Vec3 start,net.minecraft.world.phys.Vec3 end) {
@@ -89,21 +98,21 @@ public final class SkyCollision {
         if (count < 0 || count > 8192 || npcCount < 0 || npcCount > 128) throw new IllegalArgumentException("Invalid snapshot counts");
         Map<BlockPos,List<Shape>> buckets = new HashMap<>();
         for (int i=0; i<count; i++) {
-            int p=128+i*48;
+            int p=NativeLink.WORLD_HEADER+i*48;
             add(buckets,new AABB(b.getDouble(p),b.getDouble(p+8),b.getDouble(p+16),
                 b.getDouble(p+24),b.getDouble(p+32),b.getDouble(p+40)),true);
         }
         // Position-only NPC feed: explicitly approximate human-sized body boxes.
         for (int i=0; i<npcCount; i++) {
-            int p=128+8192*48+i*32;
+            int p=NativeLink.WORLD_HEADER+8192*48+i*32;
             double x=b.getDouble(p+8), y=b.getDouble(p+16), z=b.getDouble(p+24);
             add(buckets,new AABB(x-.3,y,z-.3,x+.3,y+1.8,z+.3),false);
         }
         buckets.replaceAll((key,list)->List.copyOf(list));
         long remaining = Math.max(0,Math.min(2500,b.getLong(72)));
         field = new Field(sender,epoch,seq,now+remaining*1_000_000L,client,server,client.dimension(),Map.copyOf(buckets),count,npcCount,
-            new AABB(b.getDouble(80)-b.getDouble(104),b.getDouble(88)-b.getDouble(104),b.getDouble(96)-b.getDouble(104),
-                b.getDouble(80)+b.getDouble(104),b.getDouble(88)+b.getDouble(104),b.getDouble(96)+b.getDouble(104)),b.getInt(112),b.getInt(116));
+            new AABB(b.getDouble(80)-b.getDouble(104),b.getDouble(88)-b.getDouble(128),b.getDouble(96)-b.getDouble(136),
+                b.getDouble(80)+b.getDouble(104),b.getDouble(88)+b.getDouble(128),b.getDouble(96)+b.getDouble(136)),b.getInt(112),b.getInt(116),b.getInt(NativeLink.TARGET_KIND_AT+4)==1);
         BridgeDamage.observe(b,client,server,world);
         if(previous==null || previous.sender!=sender || previous.epoch!=epoch
             || previous.cellId!=field.cellId || previous.worldspaceId!=field.worldspaceId)
@@ -116,6 +125,32 @@ public final class SkyCollision {
                 "event=SCENE_BRIDGE_COVERAGE sender={} epoch={} snapshot={} bounds={} remaining_ms={} boxes={}",
                 sender,epoch,seq,field.coverage,remaining,count);
     }
+    private static long overlapChecked,overlapLogged;
+    /**
+     * At most once a second, while Skyrim shapes overlap the space the standing player takes
+     * up: how many terrain tiles and how many character stand-ins, and the pose Minecraft has
+     * chosen. Such an overlap is where a forced crouch, a crawl, or a step undone by the
+     * server would come from, so the log shows when and why it happens.
+     */
+    public static void reportOverlap(net.minecraft.world.entity.player.Player player) {
+        Field f=field; long now=System.nanoTime();
+        if(f==null || player==null || now-overlapChecked<100_000_000L) return;
+        overlapChecked=now;
+        var at=player.position();
+        AABB standing=new AABB(at.x-.3,at.y,at.z-.3,at.x+.3,at.y+1.8,at.z+.3).deflate(1e-5);
+        int terrain=0,characters=0; Set<Shape> seen=new HashSet<>();
+        for (int x=(int)Math.floor(standing.minX); x<=(int)Math.floor(standing.maxX); x++)
+            for (int y=(int)Math.floor(standing.minY); y<=(int)Math.floor(standing.maxY); y++)
+                for (int z=(int)Math.floor(standing.minZ); z<=(int)Math.floor(standing.maxZ); z++)
+                    for (var shape:f.buckets.getOrDefault(new BlockPos(x,y,z),List.of()))
+                        if (shape.box.intersects(standing) && seen.add(shape)) { if (shape.terrain) terrain++; else characters++; }
+        if(terrain+characters==0 || now-overlapLogged<1_000_000_000L) return;
+        overlapLogged=now;
+        LoggerFactory.getLogger("PassthroughPractice").info(
+            "event=SCENE_OVERLAP terrain={} characters={} pose={} sneak_key={} on_ground={} position={}",
+            terrain,characters,player.getPose(),player.isShiftKeyDown(),player.onGround(),at);
+    }
+    public static boolean seated() {Field f=field;return admitted() && f!=null && f.seated;}
     public static boolean admitted() {
         Field f=field;long now=System.nanoTime();
         return f!=null && now<=f.expires && now-lastRender<=250_000_000L;
@@ -147,6 +182,8 @@ public final class SkyCollision {
                     buckets.computeIfAbsent(new BlockPos(x,y,z),key->new ArrayList<>()).add(shape);
     }
     public static List<Shape> query(CollisionGetter getter,AABB box) {
+        boolean[] silent=quiet.get();
+        if(silent[SERVER_CHECK] || silent[POSE_CHECK]) return List.of();
         Field f=field; long now=System.nanoTime();
         if (f==null || now>f.expires || now-lastRender>250_000_000L || !(getter instanceof Level level)
             || !level.dimension().equals(f.dimension) || f.server.isPublished()

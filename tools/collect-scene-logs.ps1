@@ -18,7 +18,9 @@ New-Item -ItemType Directory -Path $output | Out-Null
 # Scene diagnostics plus the few lifecycle and error lines that explain a silent bridge.
 # Per-frame position and collision lines (SEND, RECV, BOX_*, NPC_*, WORLD_*) stay out.
 $bridgePattern = 'event=(SCENE_|ERROR|LINK|RELEASED|ANCHOR|LOAD_|PLUGIN_LOADED|HOOK_INSTALLED|NATIVE_READY|OVERLAY_DISABLED|OVERLAY_ERROR)'
-$clientPattern = 'event=SCENE_|event=OVERLAY_(DISABLED|ERROR)|Passthrough (sender disabled|native library|Fabric plugin)'
+# Also Minecraft's own complaints about the player's movement: each one is a moment where the
+# local server sent the player back, which is felt as being stuck or slowed.
+$clientPattern = 'event=SCENE_|event=OVERLAY_(DISABLED|ERROR)|Passthrough (sender disabled|native library|Fabric plugin)|moved wrongly|moved too quickly|Can''t keep up'
 # A disabled sender is followed by its Java stack trace; keep the first lines of it.
 $clientError = 'Passthrough (sender disabled|native library)'
 for ($i=0; $i -lt $sources.Count; $i++) {

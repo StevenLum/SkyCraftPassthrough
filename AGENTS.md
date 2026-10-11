@@ -39,8 +39,9 @@ Passthrough mod from minecraft to skyrim
   This applies to both agents (given to Codex on 2026-10-08 and to Claude Code
   on 2026-10-11).
 - **Test before build.** Run the Rust tests before every build and do not build
-  on a failure. `.\tools\build-step5b.ps1` runs them first by itself. When a
-  change adds a rule the packets or adapters must obey, add a test for it.
+  on a failure. `.\tools\build-step5b.ps1` runs them first by itself, followed
+  by the Minecraft-side checks (`.\tools\test-java-rules.ps1`). When a change
+  adds a rule the packets or adapters must obey, add a test for it.
 - **Tell me how to test it.** After every change, say the exact command to run and
   what I should see. "Done" without a test procedure is not done.
 - **Ask before large refactors.** If you think the architecture is wrong, say so
@@ -49,6 +50,12 @@ Passthrough mod from minecraft to skyrim
   explain it the first time.
 
 ## Honesty
+
+- Explicit exception, 2026-10-11, for both agents: after 0.10.56 passed, the user
+  requested one additional repair attempt for chair exit and potion healing,
+  despite the earlier two-attempt stop. Diagnose first and implement them as
+  separate steps. Preserve earlier failures; if this extra attempt fails, stop
+  and write the failure handover again. This does not authorize unlimited retries.
 
 - If something is not tested, write **"not tested"**. Never imply you verified
   something you didn't.
@@ -157,6 +164,25 @@ In a newest-first file, add at the top and leave older text as it is.
   goes silent, look for `event=ERROR` and `LINK` lines first.
 - In Windows PowerShell 5.1 do not add `2>&1` or `*>&1` to the build or cargo
   scripts; it turns their normal progress output into an error.
+- `.\tools\build-step5b.ps1` on its own also installs into both games. Agents
+  build with `.\tools\build-step5b.ps1 -Offline -PackageOnly`; installing with
+  `.\tools\install-build.ps1` is mine to run (rule 4).
+- Nothing checks automatically how Minecraft itself behaves. When a change
+  depends on that, print the function with `javap -c` from the cached 26.3 jar
+  and read it. Searching that output for a name you expect once hid the real
+  one (0.10.21, corrected in 0.10.27).
+- What is checked on the Minecraft side, before every build: its own numbers
+  and yes/no rules, which live in `BridgeRules.java` with worked examples in
+  `minecraft/diagnostics/RulesCheck.java` (put a new rule there, with an
+  example), and every hook into Minecraft against the Minecraft jar
+  (`minecraft/diagnostics/MixinTargetsCheck.java`). The Gradle build itself
+  accepts a misspelt hook target; Minecraft then stops while loading.
+- A step that rests on game behaviour nobody has seen yet gets a switch, so I
+  can turn it off in `switches.txt` (project folder, `name=off`) without a
+  rebuild. The names are in `passthrough/src/switches.rs` and `Switches.java`,
+  in the same order in both; add new ones at the end.
+- After I report a test: `.\tools\collect-scene-logs.ps1`, then
+  `.\tools\check-test-report.ps1` prints the evidence feature by feature.
 
 ## Environment
 

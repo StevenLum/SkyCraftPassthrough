@@ -44,11 +44,13 @@ public final class BridgeRecovery {
         if((id[0]==0 && id[1]==0) || id[0]!=b.getLong(NativeLink.WORLD_SIZE-16)
             || id[1]!=b.getLong(NativeLink.WORLD_SIZE-8) || b.getLong(72)<2250) {clear();return;}
         var target=new Vec3(b.getDouble(NativeLink.WORLD_SIZE-40),b.getDouble(NativeLink.WORLD_SIZE-32),b.getDouble(NativeLink.WORLD_SIZE-24));
-        if(!Double.isFinite(target.x) || !Double.isFinite(target.y) || !Double.isFinite(target.z)
+        // Which heights are refused, allowed without building, or ordinary: BridgeRules.arrival.
+        int arrival=BridgeRules.arrival(target.y,level.getMinY(),level.getMaxY(),Switches.on(Switches.VOID_GUARD));
+        if(!Double.isFinite(target.x) || !Double.isFinite(target.z)
             || Math.abs(target.x)>29_999_000 || Math.abs(target.z)>29_999_000
-            || target.y<level.getMinY() || target.y+2>level.getMaxY()) {
+            || arrival==BridgeRules.REFUSED) {
             // Say why once per request instead of holding silently: the Skyrim place lies
-            // outside what this Minecraft world can represent (most often its height).
+            // outside what this Minecraft world can represent (far too deep or too high).
             if(token!=rejected) {
                 rejected=token;
                 LoggerFactory.getLogger("PassthroughPractice").info("event=SCENE_RECOVERY state=rejected token={} reason=outside_minecraft_world target={} min_y={} max_y={}",token,target,level.getMinY(),level.getMaxY());
@@ -63,7 +65,10 @@ public final class BridgeRecovery {
         } else {
             r=new Request(token,b.getLong(8),world,level,server,mc.player.getUUID(),target);
             recent=r;
-            LoggerFactory.getLogger("PassthroughPractice").info("event=SCENE_RECOVERY state=received token={} sender={} world={} target={}",token,r.sender,world,target);
+            // Outside the building range everything works except placing blocks; say so once.
+            boolean buildable=arrival==BridgeRules.NORMAL;
+            LoggerFactory.getLogger("PassthroughPractice").info("event=SCENE_RECOVERY state=received token={} sender={} world={} target={} buildable={} min_y={} max_y={}",token,r.sender,world,target,buildable,level.getMinY(),level.getMaxY());
+            if(!buildable) mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal("Skyrim bridge: this place is above or below the heights where Minecraft blocks can be placed. Everything else works here."));
         }
         r.freshUntil=System.nanoTime()+250_000_000L;pending=r;
         if(r.queued || r.applied) return;

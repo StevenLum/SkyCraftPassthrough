@@ -1,6 +1,12 @@
 //! Position payload and origin/axis conversion, shared by tests and game adapters.
 use crate::{read_u32, read_u64, RECORD_SIZE};
 pub const MAX_SAMPLE_AGE_MS: u64 = 250;
+/// A paused or unfocused Minecraft draws fewer frames, so its "not active" frames may be older.
+pub const MAX_IDLE_AGE_MS: u64 = 500;
+/// Physical movement keys and permission to fly (also while flight is switched off); raw keys are needed even while held still.
+pub const CONTROL_MOVE:u32=1;
+pub const CONTROL_FLY:u32=2;
+pub const MAX_CONTROLS:u32=CONTROL_MOVE|CONTROL_FLY;
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Sample {
@@ -9,6 +15,7 @@ pub struct Sample {
     pub frame: u64,
     pub sent_ms: u64,
     pub active: u32,
+    pub controls:u32,
     pub partial: f64,
     pub mc: [f64; 3],
     pub yaw: f64,
@@ -28,7 +35,7 @@ pub struct Sample {
 
 impl Sample {
     pub fn valid(&self) -> bool {
-        self.frame > 0 && self.active <= 1 && self.damage_ready<=1 && self.partial.is_finite()
+        self.frame > 0 && self.active <= 1 && self.controls<=MAX_CONTROLS && self.damage_ready<=1 && self.partial.is_finite()
             && (0.0..=1.0).contains(&self.partial)
             && self.mc.iter().all(|v| v.is_finite() && v.abs() <= 30_000_000.0)
             && (self.active == 0 || self.world != 0)
@@ -37,13 +44,14 @@ impl Sample {
             && self.cursor.iter().all(|v| v.is_finite())
     }
     pub(crate) fn decode(bytes: &[u8; RECORD_SIZE]) -> Self {
-        Self { death_seq:read_u64(bytes,440),death_ms:read_u64(bytes,448),cursor_context:read_u64(bytes,424),cursor:[432,436].map(|offset| f32::from_bits(read_u32(bytes,offset))),attack_seq:read_u64(bytes,400),attack_handle:read_u32(bytes,408),attack_damage:f32::from_bits(read_u32(bytes,412)),attack_ms:read_u64(bytes,416),damage_epoch:read_u64(bytes,376),damage_ack:read_u64(bytes,384),damage_ready:read_u32(bytes,392),recovery_ack:read_u64(bytes,368),sender: read_u64(bytes, 128), world: read_u64(bytes, 136),
+        Self { controls:read_u32(bytes,396),death_seq:read_u64(bytes,440),death_ms:read_u64(bytes,448),cursor_context:read_u64(bytes,424),cursor:[432,436].map(|offset| f32::from_bits(read_u32(bytes,offset))),attack_seq:read_u64(bytes,400),attack_handle:read_u32(bytes,408),attack_damage:f32::from_bits(read_u32(bytes,412)),attack_ms:read_u64(bytes,416),damage_epoch:read_u64(bytes,376),damage_ack:read_u64(bytes,384),damage_ready:read_u32(bytes,392),recovery_ack:read_u64(bytes,368),sender: read_u64(bytes, 128), world: read_u64(bytes, 136),
             frame: read_u64(bytes, 144), sent_ms: read_u64(bytes, 152),
             active: read_u32(bytes, 160), partial: f64::from_bits(read_u64(bytes, 168)),
             mc: [176,184,192].map(|offset| f64::from_bits(read_u64(bytes, offset))),
             yaw:f64::from_bits(read_u64(bytes,200)), pitch:f64::from_bits(read_u64(bytes,208)), save_id:bytes[240..256].try_into().unwrap(), mc_id:bytes[256..272].try_into().unwrap(), interact_seq:read_u64(bytes,272), interact_ms:read_u64(bytes,280), menu_seq:read_u64(bytes,288),menu_action:read_u32(bytes,296),menu_context:read_u64(bytes,304),menu_ms:read_u64(bytes,312) }
     }
     pub(crate) fn encode(&self, bytes: &mut [u8; RECORD_SIZE]) {
+        bytes[396..400].copy_from_slice(&self.controls.to_le_bytes());
         bytes[440..448].copy_from_slice(&self.death_seq.to_le_bytes());
         bytes[448..456].copy_from_slice(&self.death_ms.to_le_bytes());
         bytes[424..432].copy_from_slice(&self.cursor_context.to_le_bytes());
@@ -127,11 +135,13 @@ mod tests {
     fn sample_roundtrip_is_bit_exact() {
         let sample = Sample { sender: 123, world: 4, frame: 991, sent_ms: 55, active: 1,
             partial: 0.37, mc: [-0.0001,64.123456789, 20000.33333],
-            cursor_context: 7, cursor: [-0.25,1.5], death_seq: 3, death_ms: 44, ..Sample::default() };
+            controls:CONTROL_MOVE|CONTROL_FLY, cursor_context: 7, cursor: [-0.25,1.5], death_seq: 3, death_ms: 44, ..Sample::default() };
         let mut bytes = [0; RECORD_SIZE]; sample.encode(&mut bytes);
         let result = Sample::decode(&bytes);
         assert_eq!(sample.log_fields(), result.log_fields());
         assert_eq!(result.sent_ms, 55);
+        assert_eq!(result.controls,CONTROL_MOVE|CONTROL_FLY);
+        assert!(!Sample{controls:4,..sample}.valid());
         assert_eq!((result.cursor_context,result.cursor), (7,[-0.25,1.5]));
         assert_eq!((result.death_seq,result.death_ms), (3,44));
         for i in 0..3 { assert_eq!(sample.mc[i].to_bits(), result.mc[i].to_bits()); }

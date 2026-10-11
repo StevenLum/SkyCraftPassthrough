@@ -17,11 +17,16 @@ pub(crate) fn write_log(role: Role, message: impl AsRef<str>) -> io::Result<()> 
         let _ = slot.set(Mutex::new(file));
     }
     let mut file = slot.get().unwrap().lock().map_err(|_| io::Error::other("log lock poisoned"))?;
-    let now=crate::windows::now_ms();
-    for line in message.as_ref().lines() {
-        writeln!(file, "time_ms={now} pid={} {line}", std::process::id())?;
-    }
-    file.flush()
+    file.write_all(stamped(message.as_ref(),crate::windows::now_ms(),std::process::id()).as_bytes())
+}
+/// Every line of one log call with its time and process, as one piece of text. The log file
+/// is unbuffered and the game threads write to it, so a call must cost one write, not one
+/// per fragment of every line.
+fn stamped(message:&str,now:u64,pid:u32)->String {
+    use std::fmt::Write as _;
+    let mut text=String::with_capacity(message.len()+48);
+    for line in message.lines() { let _=writeln!(text,"time_ms={now} pid={pid} {line}"); }
+    text
 }
 
 pub(crate) struct GameLink { pub endpoint: Endpoint, role: Role, last_state: Option<State> }
@@ -125,6 +130,13 @@ pub unsafe extern "C" fn pt_mc_world(destination:*mut u8,capacity:u32)->i32 {
     }))
 }
 
+/// The steps switched off in switches.txt, as bits in the order of switches::NAMES.
+/// Reads a file and nothing else; safe before the connection exists and from any thread.
+#[unsafe(no_mangle)]
+pub extern "C" fn pt_mc_switches() -> u64 {
+    std::panic::catch_unwind(|| crate::switches::mask(Role::Minecraft)).unwrap_or(0)
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn pt_mc_init() -> i32 {
     mc_guard(|| MINECRAFT.with(|state| {
@@ -135,8 +147,8 @@ pub extern "C" fn pt_mc_init() -> i32 {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn pt_mc_frame14(world: u64, frame: u64, partial: f64,
-    x: f64, y: f64, z: f64, yaw:f64, pitch:f64, active: u32, id_lo:u64, id_hi:u64, mc_lo:u64, mc_hi:u64, interact_seq:u64, menu_seq:u64, menu_action:u32, menu_context:u64, recovery_ack:u64,damage_epoch:u64,damage_ack:u64,damage_ready:u32,attack_seq:u64,attack_handle:u32,attack_damage:f32,cursor_context:u64,cursor_x:f32,cursor_y:f32,death_seq:u64,death_age_ms:u32) -> i32
+pub extern "C" fn pt_mc_frame15(world: u64, frame: u64, partial: f64,
+    x: f64, y: f64, z: f64, yaw:f64, pitch:f64, active: u32, id_lo:u64, id_hi:u64, mc_lo:u64, mc_hi:u64, interact_seq:u64, menu_seq:u64, menu_action:u32, menu_context:u64, recovery_ack:u64,damage_epoch:u64,damage_ack:u64,damage_ready:u32,attack_seq:u64,attack_handle:u32,attack_damage:f32,cursor_context:u64,cursor_x:f32,cursor_y:f32,death_seq:u64,death_age_ms:u32,controls:u32) -> i32
 {
     mc_guard(|| MINECRAFT.with(|state| {
         let mut state = state.borrow_mut();
@@ -171,7 +183,7 @@ pub extern "C" fn pt_mc_frame14(world: u64, frame: u64, partial: f64,
         // Java reports how long ago the player died; both processes share this boot-relative clock.
         let death_seq=if active==1 {death_seq} else {0};
         let death_ms=if death_seq==0 {0} else {crate::windows::now_ms().saturating_sub(death_age_ms as u64).max(1)};
-        let sample = link.endpoint.send_position(Sample { death_seq,death_ms,cursor_context,cursor,attack_seq,attack_handle,attack_damage,attack_ms,world, frame, partial, mc: [x,y,z], yaw, pitch, active, save_id, mc_id, interact_seq, interact_ms, menu_seq,menu_action,menu_context,menu_ms,damage_epoch,damage_ack,damage_ready:if active==1 {damage_ready} else {0},recovery_ack:if active==1 {recovery_ack} else {0}, ..Sample::default() })?;
+        let sample = link.endpoint.send_position(Sample { controls:if active==1 {controls} else {0},death_seq,death_ms,cursor_context,cursor,attack_seq,attack_handle,attack_damage,attack_ms,world, frame, partial, mc: [x,y,z], yaw, pitch, active, save_id, mc_id, interact_seq, interact_ms, menu_seq,menu_action,menu_context,menu_ms,damage_epoch,damage_ack,damage_ready:if active==1 {damage_ready} else {0},recovery_ack:if active==1 {recovery_ack} else {0}, ..Sample::default() })?;
         write_log(Role::Minecraft, format!("event=SEND active={active} {}", sample.log_fields()))?;
         Ok(1)
     }))
@@ -207,3 +219,12 @@ pub unsafe extern "C" fn pt_mc_menu(destination:*mut u8)->i32 {
 }
 
 thread_local! {static ATTACK_REQUEST:RefCell<(u64,u64,u64)>=const {RefCell::new((0,0,0))};}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn a_log_call_becomes_one_piece_of_text() {
+        assert_eq!(super::stamped("a=1\nb=2",5,9),"time_ms=5 pid=9 a=1\ntime_ms=5 pid=9 b=2\n");
+        assert_eq!(super::stamped("",5,9),"");
+    }
+}

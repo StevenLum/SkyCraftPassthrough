@@ -1,4 +1,4 @@
-use passthrough_link::{Endpoint, PROTOCOL_VERSION, Role, position::{Sample, MAX_SAMPLE_AGE_MS}};
+use passthrough_link::{Endpoint, PROTOCOL_VERSION, Role, position::{Sample, MAX_IDLE_AGE_MS, MAX_SAMPLE_AGE_MS}};
 use std::{thread,time::{Duration,SystemTime,UNIX_EPOCH}};
 
 #[test]
@@ -22,8 +22,15 @@ fn fresh_latest_position_requires_handshake_and_expires() {
     assert!(sky.receive_position().unwrap().is_none());
     mc.send_position(Sample{frame:6,..sample}).unwrap();
     assert!(sky.receive_position().unwrap().is_some());
-    mc.send_position(Sample{frame:7,active:0,..sample}).unwrap();
+    // A playing Minecraft is not "paused"; a paused one is recognised but never steers.
+    assert!(sky.idle_position().unwrap().is_none());
+    let paused = mc.send_position(Sample{frame:7,active:0,..sample}).unwrap();
     assert!(sky.receive_position().unwrap().is_none());
+    assert_eq!(sky.idle_position().unwrap(),Some((paused.sender,1)));
+    assert!(mc.idle_position().is_err());
+    // Its frames stop (closed, crashed, minimised without drawing): no longer "paused".
+    thread::sleep(Duration::from_millis(MAX_IDLE_AGE_MS+50));
+    assert!(sky.idle_position().unwrap().is_none());
     mc.close().unwrap();
     let mut replacement = Endpoint::open(&name,Role::Minecraft,PROTOCOL_VERSION).unwrap();
     replacement.poll().unwrap(); sky.poll().unwrap(); replacement.poll().unwrap();

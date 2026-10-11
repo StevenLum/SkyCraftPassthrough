@@ -1,3 +1,460 @@
+# Handover note: 2026-10-11 (0.10.56 accepted; chair/healing reopened), Codex
+
+## Right now
+- State: user says "All working" for .56 left-click tests. Accepted, about to
+  commit current accepted source/records on dev under standing instruction.
+- User additionally requests ONE more attempt each at chair and healing after
+  prior two-attempt stop; permission written to AGENTS.md for both agents.
+- No new repair code yet. Diagnosis first, separate steps/versions. User installs.
+- Current versions/packages .56, protocol33; baseline77 Rust tests pass.
+- Prior uncommitted work since .19 belongs to this project and the recorded
+  steps, including still-failed chair/healing work. Snapshot records these failures;
+  acceptance does not imply those features work. Last commit fab672b on dev.
+
+## Report / acceptance
+- Collected logs/scene-report-20261011-225755 and ran checker. 17 mouse dispatches:
+  inventory14/favourites1 item_use, other2 pointer; passive layers skipped1 or2.
+  Zero ERROR/disabled. User accepts all requested take/equip/use/category checks.
+  Container acceptance is user-reported; no container menu in this log session.
+- Chair still has a terrain_blocked exit in this session; no new acceptance.
+- Healing: one clamp request2 returned2 health120; zero pre-clamp restore callbacks,
+  zero healing forwarded/applied. Damage and native potion effect path under review.
+
+## Next
+1. Commit accepted .56 snapshot on dev; no push/master changes.
+2. Diagnose chair stabilization/obstruction using logs and native controller state;
+   write new plan/header before repair code. Healing investigation is read-only
+   in parallel; no concurrent source edits. Build chair step before healing step.
+3. Preserve accepted door/bed/held-E/movement/click behavior. Deferred tests and
+   door-facing remain deferred. Actual repairs NOT TESTED until user gameplay.
+
+# Handover note: 2026-10-11 (0.10.55 left-click repair built, gameplay pending), Codex
+
+## Right now
+- Step: left-click use only, 0.10.55. Attempt 1 of 2 for this separate problem.
+- State: built and packaged, waiting for user gameplay. Nothing half-done.
+- Files changed: menu_input.rs, skse.rs, switches.rs, Switches.java; comments in
+  SkyrimMenus.java; four version files/Cargo.lock; checker and project records.
+- No installation, staging, commit or push. Only user installs.
+- Chair/healing remain stopped after two attempts, as documented in next section.
+
+## Versions and checks
+- Source and both packages: 0.10.55, protocol 33, dist/step5b. No packet changes.
+- Package-only offline build: 76 Rust tests (70 unit, 5 connection, 1 position),
+  113 Minecraft rule checks and 136 hook checks (23 files), all passed.
+- ZIP DLL hashes match release; packaged Fabric manifest is 0.10.55.
+- All 22 Rust/Java switch indices agree; new item_click=off is bit 21.
+- UTF-8 checked for 114 source/record files; git diff --check passes. Diagnostics
+  paths verified ignored. No game assets entered the tracked source.
+- Last commit fab672b on dev; preserve all uncommitted work since 0.10.19.
+  Do not commit until user says ALL testing passed.
+
+## Findings and change
+- User: left click cannot use items; E works. Earlier report:
+  logs/scene-report-20261011-221546, 20 Click deliveries and 3 Accept deliveries.
+- Native ClickHandler only queues GFx pointer down/up and marks the event handled;
+  generic user-event dispatch is then skipped. PC control map links mouse0 to
+  Right Attack/Block, remapped to RightEquip in Item Menus. Native favourites
+  message7 handler explicitly recognizes Right Attack/Block (UserEvents+0x48).
+- Action10 now sends RightEquip with InventoryMenu on top, Right Attack/Block
+  with FavoritesMenu on top; other menus keep Click. No additional confirm/click,
+  no new wire command, no PlayerControls dispatch. E and other commands unchanged.
+- Top selection mirrors native GetTopMostMenu(15), reverse stack first depth<15;
+  native getter itself avoided because it retains output reference. Optional
+  Inventory/Favourites vtable IDs 215494/215307; missing support falls back to Click.
+- Pointer motion from the sample is dispatched before click. SCENE_MENU_CLICK
+  records menu, route, native event, flags/context and native cursor coordinates.
+- item_click=off restores generic Click after restarting both games. Switch order
+  is appended. Report checker tallies route/menu; separate fixture validated it.
+- Tests exercise the synthetic native input sink, one press/release, pointer order,
+  popup/depth precedence, off/missing support, busy controls and unchanged commands.
+  Actual native item consumption/equipping and Flash hover ordering NOT TESTED.
+- Read-only native diagnostics are ignored logs/native-*-01055.txt; capstone/lz4
+  diagnostic libraries live in ignored .tools/menu-diagnostics. No assets tracked.
+
+## Acceptance kept / remaining failures
+- Door idle teleport, owned-bed grounding, held entering E, creative/flat jumps,
+  E/WASD stand requests, seated focus/menu/save, close movement and bow checks kept.
+- Chair obstruction exits and Minecraft potion healing still fail. Workbench,
+  native-hand visibility and old J/K/M/N/O remain not tested/deferred.
+- Face away from exit door remains future work. No new rules/permissions in chat.
+
+## Next
+1. User closes both games; runs .\tools\install-build.ps1. Expect 3 INSTALLED lines,
+   including Fabric 0.10.55. Start both games normally.
+2. In I inventory, hover/highlight an item already usable with E, then left click.
+   Expect one use/equip, and one-count decrease for a consumable. Holding left click
+   for a second should not consume extra. Try another item to check target selection;
+   confirm a category click still navigates without unexpectedly consuming an item.
+3. In G favourites, left click an already-favourited consumable/weapon. Expect one
+   use/equip. E remains usable. Judge native item count/equip mark, not MC healing.
+4. One dialogue pointer choice is the limited pointer-route regression, if available;
+   don't redo the long shop/chair sequence or deferred map/travel checks.
+5. After report: authorized collector then checker; use SCENE_MENU_CLICK routes
+   inventory/favourites=item_use, other=pointer. Delivery alone isn't acceptance.
+# Handover note: 2026-10-11 (0.10.54 report; chair/healing stopped after two attempts), Codex
+
+## Right now
+- State: mixed gameplay result; no new code or build. Nothing half-done.
+- Stopped: chair exit and potion healing after two unsuccessful approaches, under
+  AGENTS.md Honesty. Do not try another guessed adjustment or hook.
+- Files changed this turn: STATUS.md, README.md, MODLOG.md, docs/DESIGN.md,
+  docs/ABI.md (report/evidence only). No game installation, staging or commit.
+- Waiting on user: nothing. This is the failure handover, not a new retest request.
+
+## Versions and setup
+- Source/packages 0.10.54, protocol 33. User tested this repair batch; game version
+  binary hash not independently verified this turn. Both switches files absent;
+  all features enabled. Minecraft 26.3; Skyrim 1.7.104; offline single-player.
+- Minecraft owns normal movement; Skyrim owns furniture animation/exit physics
+  while Minecraft is held, followed by a coordinate acknowledgement.
+- Baseline .\tools\cargo.ps1 test --offline: 74 tests pass (68 unit, 6 integration).
+  Last package build: 113 Java rules and 136 hooks pass; not rerun this docs-only turn.
+- Last commit fab672b, dev; all work since 0.10.19 remains uncommitted/unstaged.
+
+## What the user last said / accepted
+- 1 failed: lower chair with table ahead, and high stool with NPC in way, still
+  fall through ground on exit. Interference is suspected, not proven.
+- 2 passed: leaving no longer teleports later. Future request: face away from
+  exit door; deferred, not implemented.
+- 3 passed on bed: owned-bed grounding check accepted. Workbench not tested.
+- 4 failed: potions still do not heal Minecraft; left click cannot use anymore,
+  E does. Holding the entering E leaves the character seated: accepted.
+- Keep previous creative/flat jumps, E/WASD stand request, focus/menu sitting,
+  seated-save recovery, close-combat movement and obstructed/empty bow acceptance.
+  Native hand visibility not separately confirmed. J/K/M/N/O remain deferred.
+
+## Current problems and evidence
+- Authorized collector report: logs/scene-report-20261011-221546; checker run.
+  Protocol 33 both sides; zero ERROR/disabled; 17 acknowledged recoveries.
+- Six chair exits, six terrain_blocked results. First: native standing at
+  time_ms=264406140, blocked at 264406343; raw target
+  [-3131406.221650914,128.04691669940948,-4151278.046381487], 2895 boxes.
+  Native gravity remains restored and repeated scans run until the native actor
+  moves to a clear position; accepted token 1 only at 264412640 (about 6.5s later).
+- Minecraft first blocked-exit position stays [-3131407.3271056246,
+  128.12500023841858,-4151279.2397789634]; hold changes seated -> no_snapshot.
+  No recorded Minecraft fall in that interval. This narrows that occurrence toward
+  native actor/camera motion; does NOT prove why the user saw falling.
+- recover/clear_feet only checks sampled terrain; NPC boxes are separate. Refusal
+  prevents teleport, but does not stabilize native exit physics/camera. Exact
+  intersecting table/floor boxes and native controller/camera heights not logged.
+- Owned-bed landing: six waits and six dispatches, 15-94ms; ownership outcome
+  accepted by user. Door tokens 6/8 lift y40.013725 to40.236932 and acknowledge;
+  user reports no subsequent teleport.
+- Healing hook installed once (ActorValueOwner+0xB8, slot6), zero positive restore
+  requests, zero captures, zero Minecraft applications. Native health120 while
+  Minecraft13.665022. Cannot establish whether full health skips the potion effect,
+  another native path is used, or the interception is wrong from these logs.
+- Left clicks: 20 action10 mouse requests dispatched/returned game_owned. E:
+  3 action5 requests dispatched/returned. action10 = Click/mouse button0;
+  action5 = Accept/keyboard Enter. Returned means callback completed, not item use.
+  Inventory contexts22/24 and favourites26 show repeated clicks before successful
+  E reported by user. This routing predates the .51-.54 repairs; regression cause
+  not established. Preserve true pointer-click semantics from .17 until diagnosed.
+
+## Already tried (do not repeat as a new attempt)
+- Chair: .50 intentional native exit then alignment failed lower chair;
+  .51 fresh terrain scan + <=0.5 upward correction still fails obstructed exits.
+- Healing: .30 positive CheckClampDamageModifier capture failed; .53 pre-clamp
+  ModActorValue capture and live-menu lease also failed (no native requests).
+  Synthetic fixtures pass but do not reproduce the actual native potion path.
+
+## Ideas not tried / next diagnostic work
+1. Log native feet/controller/camera height and exact rejected terrain plus NPC
+   overlaps during the exit hold; distinguish visual/native falling from MC falling.
+   Relevant: skse.rs Puppet::seating/recover, recovery.rs clear_feet, look.rs,
+   world_export.rs, SkyCollision.java, BridgeRecovery.java.
+2. Trace the real consumed potion/effect and native restoration call path, including
+   already-full native health. Do not guess another vtable slot. Relevant: damage.rs,
+   menu_input.rs dispatch/menu_lease, SkyrimMenus.java click, BridgeDamage.java.
+3. For click failure, establish pointer target versus highlighted item and native
+   inventory/favourites handler result; input dispatch alone is insufficient.
+4. Future door-facing request is in DESIGN Backlog. No new gameplay tests requested
+   until a justified next step exists. Agents package only; user installs.
+
+## Chat rules recorded
+- Nothing new; existing AGENTS.md permissions and two-attempt stop rule apply.
+# Handover note: 2026-10-11 (repairs: 0.10.46 and 0.10.47 built, 0.10.48 not started), Claude Code
+
+This first section is the handover note (rules: AGENTS.md, "Handover between
+agents"; shape: templates/HANDOVER-note.md). Everything below it is history.
+Claude Code stopped here because its usage ran out; Codex continues.
+
+## Right now
+- Step: repairs after the first play of 0.10.45. Plan: newest section of
+  docs/DESIGN.md ("Repairs after the first play of 0.10.45"). Three steps.
+- State: step 1 (0.10.46) and step 2 (0.10.47) are coded, tested and built.
+  Step 3 (0.10.48) is **not started: no line of it is in any file.** The
+  project builds as it is.
+- Doing or about to do: nothing is half-done.
+- Files being changed: none
+- Attempt: 1 of 2 for each of the two problems (freeze at a jump; door that
+  did nothing)
+- Waiting on the user for: nothing. Nothing from 0.10.46 on has been played.
+
+## Versions
+- In the source files: 0.10.47, protocol 31 (no packet change in these steps)
+- Built packages in dist/step5b: 0.10.47 (and 0.10.46)
+- Installed in the games: 0.10.45
+- Last commit: fab672b on `dev`. Uncommitted work: everything from 0.10.19 on
+  and its records. **Do not commit: the user said "Don't commit" on
+  2026-10-11.** AGENTS.md rule 3 still holds for later.
+- Checks at the last build: 50 Rust tests (44 unit, 5 connection, 1
+  position), 99 Minecraft-side rule checks, 136 hook checks; all passed.
+
+## What the user last said
+"the usage limit is near. Write up the summary for codex to continue". Before
+that, the test report: "B failed. There are freezes, freezes dont seem to
+happen on a set interval." and "I could not leave the building, I tried this
+after all the tests above." The whole report by letter is in the note below.
+
+## What was found (details: the plan in docs/DESIGN.md, MODLOG "Test 0.10.45")
+- Freezes: 7 holds `outside_bounds`, all at the start of a jump; the cubes
+  were aimed 1.75 blocks down for a fall that had ended. Caused by 0.10.41.
+  Fixed in 0.10.46 (`lead_up` in `passthrough/src/world_export.rs`).
+- Door: in Honningbrew Meadery E was pressed on a bar stool; Skyrim's
+  character sat down and stayed seated while the bridge moved it; after that
+  E on doors did nothing. Fits the logs, not proven. 0.10.47 makes E and R
+  leave seats alone and logs the sit state and what each press met.
+
+## Next
+1. Step 3, 0.10.48, as planned: stand a seated character up.
+   - `passthrough/src/seat.rs`: a pure timing rule (suggested: struct `Watch`
+     with `look(state, now_ms)`): while the character is moved and its sit
+     state is not 0 for 4000 ms on end, ask for a stand-up; again every 2000
+     ms; 5 tries, then one "gave up"; state 0, or a gap of more than 500 ms
+     between two looks (menu, pause, load), starts the count again. Test it:
+     standing; seated; a workbench (2.5 s sitting down, a long menu gap, 1.5 s
+     standing up) must never trigger.
+   - The call: `Actor::StopInteractingQuick(bool)`, CommonLib
+     RELOCATION_ID(37752, 38697), so `resolve(38697)` in `SKSEPlugin_Load`,
+     as `unsafe extern "C" fn(actor, true)`. Keep it optional (`.ok()`), in
+     `Addresses` (the test near the end of `skse.rs` builds an `Addresses`
+     literal and needs the new field).
+   - Where: `Puppet::frame` in `skse.rs`, right after the `SCENE_SEAT` change
+     line added in 0.10.47 and before `set_position`. Write a log line before
+     the call (so a crash inside it can be seen) and one after with the state.
+   - New switch `stand_up`, number 15, at the end of `NAMES` in
+     `switches.rs` (and its test) and in `Switches.java`.
+   - One line for it in `tools\check-test-report.ps1`, section "Seats".
+   - Version in four places, MODLOG entry,
+     `.\tools\build-step5b.ps1 -Offline -PackageOnly`.
+   - It is experimental: the routine has never been called by this mod.
+2. Records still owed for all three steps: a section at the top of README.md
+   (what changed, switches `seat_guard` and `stand_up`, test list); a section
+   at the top of docs/ABI.md (sit state bits 14 to 17 of the word at +0xC8;
+   furniture record: type 0x28, bench type +0xE0, marker flags +0xE4, bit 31
+   bed; lock record: level +0x00, key +0x08, flags +0x10 bit 0; IDs 20223 and
+   38697; new log lines SCENE_SEAT, SCENE_INTERACT_TARGET, `seat=true`); the
+   Backlog in docs/DESIGN.md (sitting, riding, mining and wood chopping from
+   Minecraft; the indoor scan that hardly ever turns calm; 0.10.41's limit
+   corrected).
+3. Test list for the user (put it in README.md): install with
+   `.\tools\install-build.ps1`. (a) Sprint-jump 200 blocks outdoors: no
+   freeze; the log should have no `outside_bounds` on the client. (b) Load
+   the last save (inside the meadery, probably seated) and press E on the
+   front door: expect to leave; if not, load the autosave from entering the
+   meadery. (c) Look at a chair and press E: the Minecraft inventory opens;
+   R does nothing. (d) A workbench and a bed still work. Then
+   `.\tools\collect-scene-logs.ps1` and `.\tools\check-test-report.ps1`.
+4. Do not ask the user for the tests they put off (C, continuous damage,The handover for Codex is written: it is the first section of STATUS.md. Two of the three repair steps are built (0.10.46 and 0.10.47); the third (0.10.48) is not started, and nothing is half-done. Nothing from 0.10.46 on has been played, and nothing is committed.
+
+What I found in your 0.10.45 test
+Freezes (B): My change in 0.10.41 caused them. Minecraft held you seven times for 50 to 100 ms, each time at the start of a jump. The collision cube (the box of Skyrim shapes sent to Minecraft) had been aimed 1.75 blocks downward while you were coming down from the previous jump, so your head left the top of it on the next jump.
+Could not leave the building: You were in Honningbrew Meadery. At 18:37:46 you pressed E while the crosshair was on the bar stool, and Skyrim’s character sat down. The bridge then carried the seated character around, and a seated Skyrim character does not open doors. This fits every line of the logs but is not proven, because the sitting state was not being logged.
+First door outside that did nothing: That is the boilery door, which needs a key. Skyrim was behaving normally there.
+What is built
+0.10.46: The cube no longer aims far up or down for anything a jump can do. A new test simulates Minecraft’s jump and fails against the 0.10.41 behaviour.
+0.10.47: Skyrim chairs, stools and benches are no longer used by E or R; E on one opens the Minecraft inventory. The log now records what every E press met (door, lock, whether Skyrim’s character is seated). New switch seat_guard=off restores the old behaviour.
+Checks before the last build: 50 Rust tests, 99 Minecraft-side rule checks, 136 hook checks, all passing.
+What is left for Codex
+0.10.48: Stand Skyrim’s character up automatically if it is ever found seated. Until this exists, your last quicksave (made while seated) will probably still be stuck.
+Records: The README test list, docs/ABI.md and the Backlog still need their sections for these three steps. MODLOG.md and the plan at the top of docs/DESIGN.md are up to date.
+If you want to test before Codex finishes
+
+Close both games and install:
+
+.\tools\install-build.ps1
+
+Expect three INSTALLED lines with Fabric 0.10.47. Then:
+
+Outdoors, sprint-jump about 200 blocks. Expected: no short freezes.
+In Skyrim, load the autosave from when you entered the meadery, not the quicksave. Walk to the front door and press E. Expected: you leave.
+Look at a chair and press E. Expected: the Minecraft inventory opens and Skyrim’s character does not sit.
+   health potion, sensitivity, height and depth).
+
+## Known problems and findings not yet fixed
+- Until step 3 exists, a save made while seated (the user's quicksave of
+  18:38:46) stays seated; the autosave from entering the meadery is clean.
+- Sitting as the cause of the dead doors is not proven. If a door fails
+  again, `SCENE_INTERACT_TARGET` now shows the lock and the sit state.
+- The furniture offsets (+0xE0, +0xE4) are from CommonLib, not seen in this
+  game version; `seat_guard=off` puts the old behaviour back.
+- E on a horse still mounts it; the bridge cannot ride.
+- A bow shot has no visible arrow (the user noted it).
+- logs\step2 holds old raw logs; only the user removes them.
+
+## Given in chat this session and already written into AGENTS.md
+- Nothing new.
+
+# Handover note: 2026-10-11 (0.10.45 played: result by letter), Claude Code
+
+Closed. The step that follows from it is the note above this one.
+
+## Right now
+- Step: third batch, 0.10.37 to 0.10.45, played once by the user.
+- State: rejected in part (two failures); the rest passed or was not tried.
+- Report: `logs\scene-report-20261011-184225`. Causes of both failures are in
+  the newest plan in docs/DESIGN.md.
+
+## Versions
+- Source, packages and games at the time: 0.10.45, protocol 31. Last commit
+  fab672b on `dev`; everything from 0.10.19 uncommitted ("Don't commit").
+
+## What the user said
+"A passed. B failed. There are freezes, freezes dont seem to happen on a set
+interval. C did not attempt. D passed. E passed. F conditional pass, enemy took
+different damage on short and full draw - I can't see the arrow fly. I did not
+shoot at an enemy behind a wall or shoot at the sky. G did not test - I don't
+have shouts yet, but I think I hear the skyrim sound effect when the shout is
+on cooldown/no shout equipped. H-L - WASD in menus work. Did not test
+continuous damage, health potion or sensitivity. M - Runs better. I could not
+leave the building, I tried this after all the tests above."
+
+## Result by letter, checked against the logs
+- Confirmed: A; D (129 calm scans, 573 re-sends; Skyrim's cost 757
+  microseconds a frame, was 1093); E (items, magic, favourites, map); F1 and
+  F2 (7 shots, 6 hits at 177 to 321 units, damage following the draw); H (41
+  direction keys in menus, 1 repeat); M.
+- Failed: B (7 holds of 50 to 100 ms, all at the start of a jump); leaving
+  Honningbrew Meadery (E on its doors did nothing).
+- G: the key reached Skyrim's player controls 8 times and the user heard
+  Skyrim's "nothing equipped" sound; a real shout is not tested.
+- Not tested: C, F3, F4, I, J, K. L was not mentioned. The user tests these
+  when they choose; do not ask again.
+
+# Handover note: 2026-10-11 (0.10.36 partly tested; nothing in progress), Claude Code
+
+This first section is the handover note (rules: AGENTS.md, "Handover between
+agents"; shape: templates/HANDOVER-note.md). Everything below it is history.
+
+## Right now
+- Step: none in progress. Two batches, 0.10.19 to 0.10.36, are built, installed
+  and played once.
+- State: partly accepted; the rest waits for a later test by the user
+- Doing or about to do: nothing. No code is being changed.
+- Files being changed: none
+- Attempt: not applicable
+- Waiting on the user for: the remaining tests "later" (their word), or the
+  next step.
+
+## Versions
+- In the source files: 0.10.36, protocol 31
+- Built packages in dist/step5b: 0.10.36
+- Installed in the games: 0.10.36
+- Last commit: fab672b on `dev`. Uncommitted work: everything from 0.10.19 to
+  0.10.36 and its records. **Do not commit it yet: the user said "Don't
+  commit" on 2026-10-11**, because part of it is untested. The standing rule
+  (AGENTS.md rule 3: commit when the user says all the testing passed) still
+  holds for later.
+- Checks: 39 Rust tests, 90 Minecraft-side rule checks, 124 hook checks; all
+  pass.
+
+## What the user last said
+"Question 1: Don't commit. I will not test anything again the 'Not confirmed'
+until later. Question 2: Not tested. Question 3: Not tested."
+(Question 2 was whether W or S was pressed in a Skyrim menu; question 3
+whether a health potion was drunk.)
+
+## Next
+1. Wait. Do not ask the user to test the open letters again; they will do it
+   when they choose.
+2. When they report: `.\tools\collect-scene-logs.ps1`, then
+   `.\tools\check-test-report.ps1`. Evidence to look for: E SCENE_MENU_SEND
+   source=move_key or source=repeat; H SCENE_DAMAGE_POOL lines with
+   pause_ticks above 0 and deliveries with hits above 1; J a
+   SCENE_DAMAGE_CLAMP line with a positive "requested", then SCENE_HEAL_CAPTURE
+   and SCENE_HEAL_APPLY; F3 a factor other than 1.0; K2 and K3
+   buildable=false.
+3. If the user asks for more work instead: the first cost numbers point to
+   Skyrim's collision ray casting, about 1.1 ms of every frame (Backlog in
+   docs/DESIGN.md), and the Backlog lists ranged attacks and swimming.
+
+## Known problems and findings not yet fixed
+- Confirmed by play and logs (report 20261011-155446): A, B, C, D, F1, F2, G,
+  I, K1, L, M.
+- Not tested: E1 and E2 (W, A, S, D and held directions), H (continuous
+  damage), J (Skyrim healing). Not exercised: F3 (sensitivity), K2 and K3
+  (height and depth), D4 (wait key).
+- No hit has yet arrived inside Minecraft's hit pause in play, so the pool
+  rule corrected in 0.10.27 is still unobserved; H is the test for it.
+- Building is limited to Minecraft's own height range (Backlog).
+- logs\step2 holds about 34 GB of old raw logs; only the user removes them
+  (`.\tools\prune-logs.ps1 -Delete`).
+
+## Given in chat this session and already written into AGENTS.md
+- Nothing new. "Don't commit" is a decision about this work, recorded above,
+  not a change to the rules.
+
+# Handover note: 2026-10-11 (batch 0.10.19 to 0.10.27), Claude Code
+
+This first section is the handover note (rules: AGENTS.md, "Handover between
+agents"; shape: templates/HANDOVER-note.md). Everything below it is history.
+
+## Right now
+- Step: batch of eight steps plus one review correction, 0.10.19 to 0.10.27.
+  Plan and result are the two newest sections of docs/DESIGN.md.
+- State: waiting for user test
+- Doing or about to do: nothing. Everything is built; nothing has been played.
+- Files being changed: none
+- Attempt: not applicable
+- Waiting on the user for: the combined test at the top of README.md
+  ("Test 0.10.27", letters A to I). The user installs with
+  `.\tools\install-build.ps1`; the agent never does.
+
+## Versions
+- In the source files: 0.10.27, protocol 30
+- Built packages in dist/step5b: 0.10.27 (0.10.19 to 0.10.26 are there too)
+- Installed in the games, as far as known: 0.10.18
+- Last commit: fab672b on `dev`. Uncommitted work: the whole batch (source,
+  documents, new files SkyrimShortcuts.java and tools/prune-logs.ps1). Commit
+  it when the user says all the testing passed, not before.
+- Rust tests: 33 pass (27 unit, 5 connection, 1 position)
+
+## What the user last said
+"Plan ahead on making new features or optimisations. Continue working on all of
+these and give me another test run once complete"
+
+## Next
+1. Wait for the user's test result. They report by letter; collect the logs
+   with `.\tools\collect-scene-logs.ps1` and check them (allowed, AGENTS.md).
+2. What to look for per letter: A SCENE_CROSSHAIR kind=6 on enemies and
+   SCENE_INTERACT_SEND source=inventory_key; B SCENE_MENU_SEND/RECV/RESULT
+   action=11..14; C SCENE_DAMAGE_POOL and SCENE_DAMAGE_APPLY hits=;
+   D SCENE_DAMAGE_SHIELD on/cancelled/off; E SCENE_ATTACK_SEND sharpness= and
+   effects=; F SCENE_CURSOR_SEND span_w=; G SCENE_RECOVERY buildable=;
+   I the size of the newest files in logs\step2 and no BOX_ lines in them.
+3. A letter that fails: fix that step only (each is one version, one MODLOG
+   entry). All pass: record it, commit on `dev`, do not push.
+
+## Known problems and findings not yet fixed
+- Nothing in this batch is played. Three things rest on unverified behaviour of
+  the games: Skyrim's menu-opening handler taking a forwarded key (B), the
+  game's hostility test (A5), a paused Minecraft still drawing frames (D).
+- Building is limited to Minecraft's own height range; a taller world needs
+  the user's decision (Backlog in docs/DESIGN.md).
+- The Minecraft side has no automated tests. 0.10.21 was built against the
+  wrong counter for that reason and corrected in 0.10.27 by reading.
+- logs\step2 holds about 34 GB of old raw logs. Only the user removes them:
+  `.\tools\prune-logs.ps1` lists, `-Delete` removes.
+
+## Given in chat this session and already written into AGENTS.md
+- Nothing new from the user. The agent added two entries to "Things that have
+  already cost time": build with `-Offline -PackageOnly` (the plain build also
+  installs into the games), and print Minecraft's code with `javap -c` instead
+  of searching it.
+
 # Handover note: 2026-10-11, Claude Code
 
 This first section is the handover note (rules: AGENTS.md, "Handover between

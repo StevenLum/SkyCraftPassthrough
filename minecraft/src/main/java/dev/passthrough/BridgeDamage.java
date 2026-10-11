@@ -8,7 +8,11 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.LoggerFactory;
 
-/** One attempt per native damage event, exclusively on the integrated server. */
+/**
+ * Each native damage event is consumed once, exclusively on the integrated server. Events are
+ * added to a pool that is delivered as one hit whenever Minecraft's half-second hit pause is
+ * over, so many small Skyrim hits (fire, frost, poison) count instead of being refused.
+ */
 public final class BridgeDamage {
     public record Status(long epoch,long ack,int ready) {}
     private record Hit(long sequence,float fraction,float raw) {}
@@ -20,11 +24,19 @@ public final class BridgeDamage {
         final java.util.UUID player;
         long ack,freshUntil,readyUntil,lastQueue;
         boolean queued,failed;
+        /** Hits consumed from Skyrim but not yet delivered: Minecraft amount, Skyrim amount, count, age. */
+        float pool,poolRaw;
+        int poolHits;
+        long poolSince,poolLast;
         State(long sender,long epoch,long world,Level level,IntegratedServer server,java.util.UUID player) {
             this.sender=sender;this.epoch=epoch;this.world=world;this.level=level;this.server=server;this.player=player;
         }
     }
     private static boolean warned;
+    // Minecraft takes any hit once 10 or fewer of its 20 pause ticks remain; before that it
+    // refuses or trims. In 26.3 the counter is LivingEntity.damageCooldownTime, not the
+    // entity's "invulnerable time", which is a different protection. The numbers are in
+    // BridgeRules (hitPauseOver, poolExpired).
     private BridgeDamage() {}
     /** Position of the closest Skyrim character listed in this snapshot, or null when none is. */
     private static Vec3 nearest(ByteBuffer b,Vec3 from) {
@@ -32,7 +44,7 @@ public final class BridgeDamage {
         if(count<=0 || count>128) return null;
         Vec3 best=null;double closest=Double.MAX_VALUE;
         for(int i=0;i<count;i++) {
-            int at=128+8192*48+i*32;
+            int at=NativeLink.WORLD_HEADER+8192*48+i*32;
             var position=new Vec3(b.getDouble(at+8),b.getDouble(at+16),b.getDouble(at+24));
             double distance=position.distanceToSqr(from);
             if(Double.isFinite(distance) && distance<closest) {closest=distance;best=position;}
@@ -55,6 +67,19 @@ public final class BridgeDamage {
             }
             return player.damageSources().generic();
         }
+    }
+    /** Applies the whole pool as one Minecraft hit. The pool is emptied first; never retried. */
+    private static void deliver(State s,IntegratedServer server,net.minecraft.server.level.ServerPlayer player,Vec3 attacker) {
+        float amount=s.pool,raw=s.poolRaw;int pooled=s.poolHits;long last=s.poolLast;
+        s.pool=0;s.poolRaw=0;s.poolHits=0;
+        if(!Float.isFinite(amount) || amount<=0) throw new IllegalArgumentException("Invalid pooled damage");
+        var source=source(server,player,attacker);
+        float before=player.getHealth();
+        boolean blocking=player.isBlocking();int armor=player.getArmorValue();
+        boolean accepted=player.hurtServer(server.overworld(),source,amount);
+        LoggerFactory.getLogger("PassthroughPractice").info(
+            "event=SCENE_DAMAGE_APPLY epoch={} sequence={} hits={} skyrim_damage={} requested={} before={} after={} accepted={} source={} attacker={} armor={} blocking={}",
+            s.epoch,last,pooled,raw,amount,before,player.getHealth(),accepted,source.getMsgId(),attacker==null ? "none" : attacker,armor,blocking);
     }
     public static synchronized void clear() {if(state!=null) {state.freshUntil=0;state.readyUntil=0;}}
     public static synchronized void reset() {state=null;}
@@ -89,7 +114,7 @@ public final class BridgeDamage {
         Hit[] hits=new Hit[count];long previous=0;
         for(int i=0;i<count;i++) {
             int at=base+16+i*16;long sequence=b.getLong(at);float fraction=b.getFloat(at+8),raw=b.getFloat(at+12);
-            if(sequence<=previous || !Float.isFinite(fraction) || fraction<=0 || !Float.isFinite(raw) || raw<=0) throw new IllegalArgumentException("Invalid damage event");
+            if(sequence<=previous || !BridgeRules.validHealthEvent(fraction,raw)) throw new IllegalArgumentException("Invalid damage event");
             hits[i]=new Hit(sequence,fraction,raw);previous=sequence;
         }
         // The closest Skyrim character gives the hit a direction for shields and knockback.
@@ -102,20 +127,38 @@ public final class BridgeDamage {
             var player=server.getPlayerList().getPlayer(s.player);
             if(player==null || player.isDeadOrDying() || player.isSpectator() || player.level()!=server.overworld()) {s.readyUntil=0;return;}
             try {
-                var source=source(server,player,attacker);
+                long time=System.nanoTime();
+                if(s.poolHits>0 && BridgeRules.poolExpired(time-s.poolSince)) {
+                    LoggerFactory.getLogger("PassthroughPractice").info("event=SCENE_DAMAGE_POOL epoch={} state=expired hits={} requested={} age_ms={}",
+                        s.epoch,s.poolHits,s.pool,(time-s.poolSince)/1_000_000L);
+                    s.pool=0;s.poolRaw=0;s.poolHits=0;
+                }
+                // Switched off in switches.txt: one Minecraft hit per Skyrim hit, as before 0.10.21.
+                boolean pooling=Switches.on(Switches.DAMAGE_POOL);
                 for(var hit:hits) {
                     if(hit.sequence<=s.ack) continue;
                     if(player.isDeadOrDying()) {s.readyUntil=0;return;}
                     float requested=hit.fraction*player.getMaxHealth();
                     if(!Float.isFinite(requested) || requested<=0) throw new IllegalArgumentException("Invalid scaled damage");
-                    // Commit consumption before calling gameplay code; never retry a partial call.
-                    s.ack=hit.sequence;float before=player.getHealth();
-                    boolean blocking=player.isBlocking();int armor=player.getArmorValue();
-                    boolean accepted=player.hurtServer(server.overworld(),source,requested);
+                    // Commit consumption before anything else; an event is never counted twice.
+                    s.ack=hit.sequence;
+                    if(BridgeRules.isRestore(hit.raw)) {
+                        // Skyrim restored health (potion, food, healing spell): heal at once, outside the pool.
+                        float before=player.getHealth();
+                        player.heal(requested);
+                        LoggerFactory.getLogger("PassthroughPractice").info(
+                            "event=SCENE_HEAL_APPLY epoch={} sequence={} skyrim_heal={} fraction={} requested={} before={} after={}",
+                            s.epoch,hit.sequence,-hit.raw,hit.fraction,requested,before,player.getHealth());
+                        continue;
+                    }
+                    if(s.poolHits==0) s.poolSince=time;
+                    s.pool+=requested;s.poolRaw+=hit.raw;s.poolHits++;s.poolLast=hit.sequence;
                     LoggerFactory.getLogger("PassthroughPractice").info(
-                        "event=SCENE_DAMAGE_APPLY epoch={} sequence={} skyrim_damage={} fraction={} requested={} before={} after={} accepted={} source={} attacker={} armor={} blocking={}",
-                        s.epoch,hit.sequence,hit.raw,hit.fraction,requested,before,player.getHealth(),accepted,source.getMsgId(),attacker==null ? "none" : attacker,armor,blocking);
+                        "event=SCENE_DAMAGE_POOL epoch={} sequence={} skyrim_damage={} fraction={} requested={} pool={} hits={} pause_ticks={}",
+                        s.epoch,hit.sequence,hit.raw,hit.fraction,requested,s.pool,s.poolHits,player.damageCooldownTime);
+                    if(!pooling) deliver(s,server,player,attacker);
                 }
+                if(s.poolHits>0 && BridgeRules.hitPauseOver(player.damageCooldownTime)) deliver(s,server,player,attacker);
                 s.readyUntil=player.isDeadOrDying() ? 0 : System.nanoTime()+500_000_000L;
             } catch(Exception error) {
                 s.failed=true;s.readyUntil=0;

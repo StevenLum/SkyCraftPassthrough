@@ -15,5 +15,6 @@ public abstract class SkyrimSavesMixin {
     @Inject(method="handleKeybinds",at=@At("HEAD"))
     private void passthrough$saves(CallbackInfo ci) {
         SkyrimSaves.beforeKeybinds();SkyrimMenus.beforeKeybinds();SkyrimInteraction.beforeKeybinds();
+        dev.passthrough.SkyrimShortcuts.beforeKeybinds();
     }
 }

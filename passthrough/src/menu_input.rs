@@ -15,8 +15,11 @@ impl Status {
     }
 }
 /// `cursor` is (MenuCursor singleton slot, MouseMoveEvent vtable); absent disables only the pointer.
+/// `player_controls` is the PlayerControls singleton slot; absent disables only the shout key.
 pub struct Api {pub ui:usize,pub player:usize,pub controls:usize,pub input:usize,pub button:usize,pub string_ctor:usize,pub string_release:usize,
-    pub cursor:Option<(usize,usize)>}
+    pub cursor:Option<(usize,usize)>,pub player_controls:Option<usize>,
+    /// Optional InventoryMenu/FavoritesMenu/ContainerMenu vtables for contextual left mouse use.
+    pub item_click:Option<[usize;3]>}
 #[repr(C)]
 struct Tasks {version:u32,add:usize,add_ui:unsafe extern "C" fn(*mut c_void)}
 #[repr(C)]
@@ -111,6 +114,10 @@ impl State {
         })?;
         let fingerprint=if valid {unsafe {Self::fingerprint(api,sample,sky)}} else {0};
         self.change(fingerprint)?;
+        if fingerprint!=0 {
+            let player=unsafe {*(api.player as *const Object)};
+            crate::damage::menu_lease(player,sample);
+        }
         let key=(sample.sender,sample.world,sample.menu_seq);
         if sample.menu_seq!=0 && self.last!=Some(key) {
             self.last=Some(key);
@@ -120,10 +127,12 @@ impl State {
             let mut reason=verdict(sample.menu_action,valid,fingerprint!=0,sample.menu_context,self.context,stale,cooling);
             // Gameplay commands passed the pure rules; the live game state decides the rest.
             if reason=="gameplay" {reason=unsafe {Self::gameplay(api,sample)};}
+            if reason=="dispatch" && to_player_controls(sample.menu_action)
+                && !(api.player_controls.is_some() && crate::switches::on(Role::Skyrim,crate::switches::SHOUT)) {reason="unavailable";}
             if reason=="dispatch" && GAMEPLAY_COMMANDS.contains(&sample.menu_action) {self.saved=now;}
             write_log(Role::Skyrim,format!("event=SCENE_MENU_RECV sequence={} action={} context={} state={} age_ms={} thread={:?}",sample.menu_seq,sample.menu_action,sample.menu_context,reason,age,std::thread::current().id()))?;
             if reason=="dispatch" {
-                let dispatched=unsafe {dispatch(api,sample.menu_action)};
+                let dispatched=unsafe {self.dispatch_input(api,sample,now)}?;
                 write_log(Role::Skyrim,format!("event=SCENE_MENU_RESULT sequence={} state={} outcome=game_owned thread={:?}",sample.menu_seq,if dispatched {"returned"} else {"busy_or_missing_controls"},std::thread::current().id()))?;
                 self.change(unsafe {Self::fingerprint(api,sample,sky)})?;
             }
@@ -135,7 +144,14 @@ impl State {
             Ok(())
         })
     }
-    /// Quicksave/quickload need a loaded game, the paired save and no Skyrim menu in the way.
+    /// Flush this sample's pointer motion before a click, so it cannot use yesterday's
+    /// highlighted item. Other commands keep their existing motion ordering.
+    unsafe fn dispatch_input(&mut self,api:&Api,s:Sample,now:u64)->io::Result<bool> {
+        if s.menu_action==10 {unsafe {self.point(api,s,now)}?;}
+        unsafe {dispatch(api,s,crate::switches::on(Role::Skyrim,crate::switches::ITEM_CLICK))}
+    }
+    /// Quicksave, quickload and the menu-opening keys need a loaded game, the paired save and
+    /// no Skyrim menu in the way.
     unsafe fn gameplay(api:&Api,s:Sample)->&'static str {
         if !crate::skse::menu_ready() {return "loading";}
         let ui=unsafe {*(api.ui as *const Object)};
@@ -204,7 +220,10 @@ fn measured_gain(old:f32,request:i32,before:f32,after:f32,size:f32)->f32 {
 /// Commands that need an open Skyrim menu and its current context number.
 pub const MENU_COMMANDS:[u32;8]=[1,2,3,4,5,6,9,10];
 /// Commands for normal play: context 0 and no Skyrim menu open.
-pub const GAMEPLAY_COMMANDS:[u32;2]=[7,8];
+pub const GAMEPLAY_COMMANDS:[u32;10]=[7,8,11,12,13,14,15,16,17,18];
+/// Commands that are not about menus go to Skyrim's player controls instead of its menu
+/// controls: so far only the shout or power key.
+fn to_player_controls(action:u32)->bool {action==18}
 /// Skyrim user event (NUL-terminated), input device (0 keyboard, 1 mouse) and key code for
 /// each command number. A number missing here is rejected before anything is sent.
 fn event(action:u32)->Option<(&'static [u8],u32,u32)> {
@@ -215,6 +234,12 @@ fn event(action:u32)->Option<(&'static [u8],u32,u32)> {
         7=>(b"Quicksave\0",0,0x3F),8=>(b"Quickload\0",0,0x43),
         // Skyrim's R key in item menus (take all, drop), and a true left mouse click.
         9=>(b"XButton\0",0,0x13),10=>(b"Click\0",1,0),
+        // Skyrim's own menu-opening user events with their default Tab, M, J and T scan codes.
+        11=>(b"Tween Menu\0",0,0x0F),12=>(b"Quick Map\0",0,0x32),13=>(b"Journal\0",0,0x24),14=>(b"Wait\0",0,0x14),
+        // More of the same (I, P) and the favourites menu (Q), which has a handler of its own.
+        15=>(b"Quick Inventory\0",0,0x17),16=>(b"Quick Magic\0",0,0x19),17=>(b"Favorites\0",0,0x10),
+        // Skyrim's shout or power key (Z); the only command sent to the player controls.
+        18=>(b"Shout\0",0,0x2C),
         _=>return None,
     })
 }
@@ -247,11 +272,86 @@ unsafe fn glide(api:&Api,vtable:usize,by:[i32;2])->bool {
 }
 #[repr(C)]
 struct Button {vtable:usize,device:u32,kind:u32,next:*mut Button,user:usize,id:u32,pad:u32,value:f32,held:f32}
-unsafe fn dispatch(api:&Api,action:u32)->bool {
-    let controls=unsafe {*(api.controls as *const Object)};
+/// Only known item menus get item use. Dialogue, barter and popups keep clicks.
+#[derive(Clone,Copy,Debug,Default,PartialEq,Eq)]
+enum ClickMenu {#[default] Other,Inventory,Favourites,Container}
+impl ClickMenu {
+    fn name(self)->&'static str {match self {Self::Other=>"other",Self::Inventory=>"inventory",Self::Favourites=>"favourites",Self::Container=>"container"}}
+}
+#[derive(Default)]
+struct ClickInfo {menu:ClickMenu,flags:u32,context:u32,vtable:usize,index:Option<usize>,skipped:u32}
+/// A rendering-only menu must not hide the input menu below it. The failed .55
+/// session selected flags0x8840/context19 for every click. Retain unknown menus
+/// and every input/modal owner as barriers, even when not in our item whitelist.
+fn passive_render_menu(flags:u32,context:u32)->bool {
+    const INPUT_FLAGS:u32=1|4|8|16|0x400|0x2000|0x20000;
+    context==19 && flags&0x8000!=0 && flags&INPUT_FLAGS==0
+}
+/// Borrow the UI stack only on its owning task. Native GetTopMostMenu(15) supplies
+/// order/depth, but includes passive rendering menus; it is not an input selector.
+unsafe fn click_info(api:&Api)->ClickInfo {
+    let ui=unsafe {*(api.ui as *const Object)};
+    if ui.is_null() {return ClickInfo::default();}
+    let count:u32=unsafe {read(ui,0x120)};
+    let stack:*const Object=unsafe {read(ui,0x110)};
+    if count==0 || count>128 || stack.is_null() {return ClickInfo::default();}
+    let mut skipped=0;
+    for i in (0..count as usize).rev() {
+        let menu=unsafe {*stack.add(i)};
+        if menu.is_null() || unsafe {read::<u8>(menu,0x18)}>=15 {continue;}
+        let flags:u32=unsafe {read(menu,0x1C)};
+        let context:u32=unsafe {read(menu,0x20)};
+        if passive_render_menu(flags,context) {skipped+=1;continue;}
+        let vtable:usize=unsafe {read(menu,0)};
+        let kind=match api.item_click {
+            Some([inventory,_,_]) if vtable==inventory=>ClickMenu::Inventory,
+            Some([_,favourites,_]) if vtable==favourites=>ClickMenu::Favourites,
+            Some([_,_,container]) if vtable==container=>ClickMenu::Container,
+            _=>ClickMenu::Other,
+        };
+        return ClickInfo{menu:kind,flags,context,vtable,index:Some(i),skipped};
+    }
+    ClickInfo{skipped,..ClickInfo::default()}
+}
+/// Native PC control map: left mouse = right hand attack; Item Menus remap that
+/// to RightEquip. Favourites' native user-event handler uses Right Attack/Block.
+/// Sending generic Click alone bypasses those use paths; never send both.
+fn routed_event(action:u32,menu:ClickMenu,enabled:bool)->Option<(&'static [u8],u32,u32)> {
+    if action==10 && enabled {
+        match menu {
+            ClickMenu::Inventory|ClickMenu::Container=>return Some((b"RightEquip\0",1,0)),
+            ClickMenu::Favourites=>return Some((b"Right Attack/Block\0",1,0)),
+            ClickMenu::Other=>{},
+        }
+    }
+    event(action)
+}
+unsafe fn dispatch(api:&Api,s:Sample,item_click:bool)->io::Result<bool> {
+    let action=s.menu_action;
     let source=unsafe {*(api.input as *const Object)};
-    if controls.is_null() || source.is_null() || unsafe {read::<u8>(controls,0x80)!=0 || read::<u8>(controls,0x82)!=0} {return false;}
-    let Some((name,device,id))=event(action) else {return false;};
+    // Both are input-event sinks whose first virtual function after the destructor takes the
+    // event. Each has its own "busy" flags (CommonLib MenuControls.h: 0x80 and 0x82;
+    // PlayerControls.h: notifyingHandlers 0x1D8, blockPlayerInput 0x1D9).
+    let controls=if to_player_controls(action) {
+        let Some(slot)=api.player_controls else {return Ok(false);};
+        let controls=unsafe {*(slot as *const Object)};
+        if controls.is_null() || unsafe {read::<u8>(controls,0x1D8)!=0 || read::<u8>(controls,0x1D9)!=0} {return Ok(false);}
+        controls
+    } else {
+        let controls=unsafe {*(api.controls as *const Object)};
+        if controls.is_null() || unsafe {read::<u8>(controls,0x80)!=0 || read::<u8>(controls,0x82)!=0} {return Ok(false);}
+        controls
+    };
+    if source.is_null() {return Ok(false);}
+    let info=if action==10 {unsafe {click_info(api)}} else {ClickInfo::default()};
+    let Some((name,device,id))=routed_event(action,info.menu,item_click) else {return Ok(false);};
+    if action==10 {
+        let cursor=api.cursor.map(|(slot,_)| unsafe {*(slot as *const Object)}).filter(|p|!p.is_null());
+        let xy=cursor.map(|p| unsafe {[read::<f32>(p,4),read::<f32>(p,8)]});
+        let route=if item_click && info.menu!=ClickMenu::Other {"item_use"} else {"pointer"};
+        let native=std::str::from_utf8(&name[..name.len()-1]).unwrap();
+        write_log(Role::Skyrim,format!("event=SCENE_MENU_CLICK sequence={} context={} menu={} route={} native_event={native:?} enabled={item_click} menu_flags={:#x} native_context={} cursor={xy:?} passive_skipped={} stack_index={:?} selected_vtable={:#x}",s.menu_seq,s.menu_context,info.menu.name(),route,info.flags,info.context,info.skipped,info.index,info.vtable))?;
+    }
     let ctor:unsafe extern "C" fn(*mut usize,*const u8)->*mut usize=unsafe {mem::transmute(api.string_ctor)};
     let release:unsafe extern "C" fn(*mut usize)=unsafe {mem::transmute(api.string_release)};
     let mut button=Button{vtable:api.button,device,kind:0,next:ptr::null_mut(),user:0,id,pad:0,value:1.0,held:0.0};
@@ -262,12 +362,158 @@ unsafe fn dispatch(api:&Api,action:u32)->bool {
     unsafe {process(controls,&event,source);}
     button.value=0.0;button.held=0.05;
     unsafe {process(controls,&event,source);release(&mut button.user);}
-    true
+    Ok(true)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn left_mouse_uses_the_native_item_event_only_in_known_item_menus() {
+        assert_eq!(routed_event(10,ClickMenu::Inventory,true),Some((&b"RightEquip\0"[..],1,0)));
+        assert_eq!(routed_event(10,ClickMenu::Container,true),Some((&b"RightEquip\0"[..],1,0)));
+        assert_eq!(routed_event(10,ClickMenu::Favourites,true),Some((&b"Right Attack/Block\0"[..],1,0)));
+        assert_eq!(routed_event(10,ClickMenu::Other,true),event(10));
+        for menu in [ClickMenu::Inventory,ClickMenu::Favourites,ClickMenu::Container,ClickMenu::Other] {
+            assert_eq!(routed_event(10,menu,false),event(10));
+            for action in 0..=64 {
+                if action!=10 {assert_eq!(routed_event(action,menu,true),event(action));}
+            }
+        }
+        // Neither use action goes to PlayerControls: the native menu owns it.
+        assert!(!to_player_controls(10));
+    }
+
+    #[test]
+    fn passive_renderers_never_skip_an_input_owner_or_unknown_menu() {
+        assert!(passive_render_menu(0x8840,19));
+        // Every supported ownership flag must stop the search, individually.
+        for owner in [1,4,8,16,0x400,0x2000,0x20000] {
+            assert!(!passive_render_menu(0x8840|owner,19));
+        }
+        assert!(!passive_render_menu(0,19)); // unknown popup, not a renderer
+        for context in 0..=18 {assert!(!passive_render_menu(0x8840,context));}
+    }
+
+    // An actual synthetic event sink: verifies memory layout, selected event,
+    // exactly one press/release and motion-before-use without launching the games.
+    #[derive(Clone,Debug,PartialEq)]
+    struct Received {kind:u32,name:String,device:u32,id:u32,value:f32,held:f32,xy:[f32;2]}
+    thread_local! {
+        static RECEIVED:RefCell<Vec<Received>>=const {RefCell::new(Vec::new())};
+        static TEST_CURSOR:std::cell::Cell<usize>=const {std::cell::Cell::new(0)};
+    }
+    unsafe extern "C" fn fake_ctor(out:*mut usize,name:*const u8)->*mut usize {
+        unsafe {*out=name as usize;} out
+    }
+    unsafe extern "C" fn fake_release(out:*mut usize) {unsafe {*out=0;}}
+    unsafe extern "C" fn fake_process(_:Object,event:*const *mut Button,_:Object)->u32 {
+        let b=unsafe {&**event};
+        let cursor=TEST_CURSOR.with(|p|p.get()) as Object;
+        if b.kind==1 {
+            let m=unsafe {&*(*event as *const Motion)};
+            unsafe {ptr::write_unaligned(cursor.add(4).cast(),read::<f32>(cursor,4)+m.x as f32);
+                ptr::write_unaligned(cursor.add(8).cast(),read::<f32>(cursor,8)+m.y as f32);}
+        }
+        let name=unsafe {std::ffi::CStr::from_ptr(b.user as *const i8)}.to_str().unwrap().to_owned();
+        let r=Received{kind:b.kind,name,device:b.device,id:b.id,
+            value:if b.kind==0 {b.value} else {0.0},held:if b.kind==0 {b.held} else {0.0},
+            xy:unsafe {[read(cursor,4),read(cursor,8)]}};
+        RECEIVED.with(|v|v.borrow_mut().push(r)); 0
+    }
+    fn received()->Vec<Received> {RECEIVED.with(|v|std::mem::take(&mut *v.borrow_mut()))}
+    unsafe fn put<T>(p:Object,at:usize,value:T) {unsafe {ptr::write_unaligned(p.add(at).cast(),value);}}
+
+    #[test]
+    fn native_click_adapter_obeys_top_menu_fallbacks_and_moves_before_one_use() {
+        let mut ui=[0usize;64];let mut inventory=[0usize;8];let mut favourites=[0usize;8];let mut overlay=[0usize;8];let mut container=[0usize;8];
+        let mut cursor=[0usize;8];let mut controls=[0usize;32];
+        let ui_p=ui.as_mut_ptr().cast::<u8>();let inventory_p=inventory.as_mut_ptr().cast::<u8>();
+        let favourites_p=favourites.as_mut_ptr().cast::<u8>();let overlay_p=overlay.as_mut_ptr().cast::<u8>();
+        let container_p=container.as_mut_ptr().cast::<u8>();
+        let cursor_p=cursor.as_mut_ptr().cast::<u8>();let controls_p=controls.as_mut_ptr().cast::<u8>();
+        let mut stack=[inventory_p];let mut top_stack=[inventory_p,overlay_p];
+        let table=[0usize,fake_process as *const () as usize];
+        unsafe {
+            put(ui_p,0x110,stack.as_mut_ptr());put(ui_p,0x120,1u32);
+            put(inventory_p,0,55usize);put(inventory_p,0x18,0u8);put(inventory_p,0x1C,0xA481u32);put(inventory_p,0x20,19u32);
+            put(favourites_p,0,66usize);put(favourites_p,0x18,3u8);put(favourites_p,0x20,6u32);put(favourites_p,0x1C,0xA441u32);
+            put(container_p,0,88usize);put(container_p,0x1C,0xA4C9u32);put(container_p,0x20,3u32);
+            put(overlay_p,0,77usize);put(overlay_p,0x18,10u8);put(overlay_p,0x1C,16u32);put(overlay_p,0x20,19u32);
+            put(controls_p,0,table.as_ptr());
+            put(cursor_p,4,300f32);put(cursor_p,8,200f32);put(cursor_p,0x14,1000f32);put(cursor_p,0x18,500f32);put(cursor_p,0x1C,1f32);
+        }
+        TEST_CURSOR.with(|p|p.set(cursor_p as usize));received();
+        let api=Api{ui:&ui_p as *const Object as usize,player:0,controls:&controls_p as *const Object as usize,
+            input:&controls_p as *const Object as usize,button:99,string_ctor:fake_ctor as *const () as usize,
+            string_release:fake_release as *const () as usize,cursor:Some((&cursor_p as *const Object as usize,98)),
+            player_controls:None,item_click:Some([55,66,88])};
+        let sample=Sample{sender:7,world:1,menu_seq:10,menu_action:10,menu_context:11,cursor_context:11,cursor:[0.1,0.2],..Sample::default()};
+        let mut state=State{fingerprint:1,context:11,pointer:Pointer{key:(7,1,11),gain:[1.0;2],..Pointer::NONE},..State::default()};
+        assert!(unsafe {state.dispatch_input(&api,sample,1000)}.unwrap());
+        let first=received();assert_eq!(first.len(),3);
+        assert_eq!((first[0].kind,first[0].name.as_str()),(1,"Cursor"));
+        assert_eq!(first[1],Received{kind:0,name:"RightEquip".into(),device:1,id:0,value:1.0,held:0.0,xy:[400.0,300.0]});
+        assert_eq!(first[2],Received{value:0.0,held:0.05,..first[1].clone()});
+        let info=unsafe {click_info(&api)};assert_eq!((info.menu,info.flags,info.context),(ClickMenu::Inventory,0xA481,19));
+        // Reusing totals for the second poll must not move the pointer a second time.
+        unsafe {state.point(&api,sample,1000)}.unwrap();assert!(received().is_empty());
+        unsafe {put(ui_p,0x110,top_stack.as_mut_ptr());put(ui_p,0x120,2u32);}
+        // Exact reported passive renderer above inventory: .55 returned Other.
+        unsafe {put(overlay_p,0x1C,0x8840u32);}
+        let info=unsafe {click_info(&api)};
+        assert_eq!((info.menu,info.skipped,info.index,info.vtable),(ClickMenu::Inventory,1,Some(0),55));
+        assert!(unsafe {dispatch(&api,sample,true)}.unwrap());
+        let use_events=received();assert_eq!(use_events.len(),2);
+        assert_eq!(use_events[0].name,"RightEquip");assert_eq!(use_events[1].value,0.0);
+        // A real popup is an input barrier; never use the inventory behind it.
+        unsafe {put(overlay_p,0x1C,16u32);}
+        assert_eq!(unsafe {click_info(&api)}.menu,ClickMenu::Other); // popup above inventory
+        assert!(unsafe {dispatch(&api,sample,true)}.unwrap());assert_eq!(received()[0].name,"Click");
+        unsafe {put(overlay_p,0x18,15u8);}
+        assert_eq!(unsafe {click_info(&api)}.menu,ClickMenu::Inventory); // native depth cutoff
+        assert!(unsafe {dispatch(&api,sample,false)}.unwrap());assert_eq!(received()[0].name,"Click");
+        let missing=Api{item_click:None,..api};
+        assert!(unsafe {dispatch(&missing,sample,true)}.unwrap());assert_eq!(received()[0].name,"Click");
+        stack[0]=favourites_p;
+        unsafe {put(ui_p,0x110,stack.as_mut_ptr());put(ui_p,0x120,1u32);}
+        assert!(unsafe {dispatch(&missing,sample,true)}.unwrap());assert_eq!(received()[0].name,"Click");
+        let restored=Api{item_click:Some([55,66,88]),..missing};
+        assert!(unsafe {dispatch(&restored,sample,true)}.unwrap());assert_eq!(received()[0].name,"Right Attack/Block");
+        assert!(unsafe {dispatch(&restored,Sample{menu_action:5,..sample},true)}.unwrap());assert_eq!(received()[0].name,"Accept");
+        stack[0]=container_p;
+        unsafe {put(ui_p,0x110,stack.as_mut_ptr());}
+        assert_eq!(unsafe {click_info(&restored)}.menu,ClickMenu::Container);
+        assert!(unsafe {dispatch(&restored,sample,true)}.unwrap());
+        let take=received();assert_eq!(take.len(),2);assert_eq!(take[0].name,"RightEquip");
+        assert!(unsafe {dispatch(&restored,sample,false)}.unwrap());assert_eq!(received()[0].name,"Click");
+        assert!(unsafe {dispatch(&missing,sample,true)}.unwrap());assert_eq!(received()[0].name,"Click");
+        // Barter shares container's flags/context but not identity; it must keep
+        // the pointer route that the user accepted. Same for dialogue/unknown UI.
+        for (flags,context) in [(0xA4C9u32,3u32),(0x8844,19),(0x8840,3),(0,19)] {
+            unsafe {put(overlay_p,0x18,0u8);put(overlay_p,0x1C,flags);put(overlay_p,0x20,context);}
+            top_stack[0]=container_p;
+            unsafe {put(ui_p,0x110,top_stack.as_mut_ptr());put(ui_p,0x120,2u32);}
+            assert_eq!(unsafe {click_info(&restored)}.menu,ClickMenu::Other);
+            assert!(unsafe {dispatch(&restored,sample,true)}.unwrap());
+            let click=received();assert_eq!(click.len(),2);assert_eq!(click[0].name,"Click");
+        }
+        // Two passive layers then no owner: no accidental native item use.
+        unsafe {put(overlay_p,0x1C,0x8840u32);put(overlay_p,0x20,19u32);}
+        top_stack[0]=overlay_p;
+        unsafe {put(ui_p,0x110,top_stack.as_mut_ptr());}
+        let info=unsafe {click_info(&restored)};
+        assert_eq!((info.menu,info.skipped,info.index),(ClickMenu::Other,2,None));
+
+        unsafe {put(ui_p,0x120,129u32);}
+        assert_eq!(unsafe {click_info(&restored)}.menu,ClickMenu::Other);
+        unsafe {put(ui_p,0x120,0u32);}
+        assert_eq!(unsafe {click_info(&restored)}.menu,ClickMenu::Other);
+        unsafe {put(controls_p,0x80,1u8);}
+        assert!(!unsafe {dispatch(&restored,sample,true)}.unwrap());assert!(received().is_empty());
+    }
+
     /// A command number added in one place but not the other would be silently dropped
     /// (or sent without a rule), so the two lists and the event table must agree.
     #[test]
@@ -299,7 +545,25 @@ mod tests {
             assert_eq!(verdict(action,true,true,4,4,false,true),"dispatch");
         }
         assert_eq!(verdict(0,true,true,4,4,false,false),"bad_action");
-        assert_eq!(verdict(11,true,true,4,4,false,false),"bad_action");
+        assert_eq!(verdict(40,true,true,4,4,false,false),"bad_action");
+    }
+    /// The menu-opening keys use Skyrim's own event names; a misspelt one would be ignored
+    /// by the game without any error.
+    #[test]
+    fn menu_opening_commands_carry_skyrims_event_names() {
+        let name=|action| std::str::from_utf8(event(action).unwrap().0).unwrap().trim_end_matches('\0').to_owned();
+        assert_eq!([11,12,13,14].map(name),["Tween Menu","Quick Map","Journal","Wait"]);
+        assert_eq!([15,16,17].map(name),["Quick Inventory","Quick Magic","Favorites"]);
+        // The shout key is the only command for the player controls, and it is a play command.
+        assert_eq!(name(18),"Shout");
+        for action in 0..=64 {assert_eq!(to_player_controls(action),action==18);}
+        assert!(GAMEPLAY_COMMANDS.contains(&18) && !MENU_COMMANDS.contains(&18));
+        assert_eq!([7,8].map(name),["Quicksave","Quickload"]);
+        // They are for normal play only: aimed at an open menu they are refused.
+        for action in [11,12,13,14,15,16,17] {
+            assert!(GAMEPLAY_COMMANDS.contains(&action));
+            assert_eq!(verdict(action,true,true,4,4,false,false),"context_changed");
+        }
     }
     /// Numbers from report 20261011-001910: Skyrim moved the pointer 2 pixels per count.
     #[test]

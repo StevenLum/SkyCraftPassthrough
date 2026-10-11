@@ -3,6 +3,7 @@ package dev.passthrough.mixin;
 import dev.passthrough.SkyrimInteraction;
 import dev.passthrough.SkyrimMenus;
 import dev.passthrough.SkyrimSaves;
+import dev.passthrough.SkyrimShortcuts;
 import java.util.Arrays;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Options;
@@ -16,7 +17,9 @@ public abstract class InteractionOptionsMixin {
     @Shadow @Final @Mutable public KeyMapping[] keyMappings;
     @Inject(method="load",at=@At("HEAD"))
     private void passthrough$register(CallbackInfo ci) {
-        var additions=Arrays.copyOf(SkyrimMenus.bindings(),10);
+        var shortcuts=SkyrimShortcuts.bindings();
+        var additions=Arrays.copyOf(SkyrimMenus.bindings(),10+shortcuts.length);
+        System.arraycopy(shortcuts,0,additions,10,shortcuts.length);
         additions[6]=SkyrimInteraction.binding();
         additions[7]=SkyrimSaves.bindings()[0];
         additions[8]=SkyrimSaves.bindings()[1];

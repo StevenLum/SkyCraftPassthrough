@@ -8,5 +8,13 @@
   "key.passthrough.menu_cancel": "Skyrim menu: back",
   "key.passthrough.menu_click": "Skyrim menu: click at pointer",
   "key.passthrough.quicksave": "Skyrim quicksave",
-  "key.passthrough.quickload": "Skyrim quickload"
+  "key.passthrough.quickload": "Skyrim quickload",
+  "key.passthrough.open_character_menu": "Skyrim: character menu",
+  "key.passthrough.open_map": "Skyrim: map",
+  "key.passthrough.open_journal": "Skyrim: journal",
+  "key.passthrough.open_wait": "Skyrim: wait",
+  "key.passthrough.open_items": "Skyrim: items",
+  "key.passthrough.open_magic": "Skyrim: magic",
+  "key.passthrough.open_favorites": "Skyrim: favourites",
+  "key.passthrough.open_shout": "Skyrim: shout or power"
 }

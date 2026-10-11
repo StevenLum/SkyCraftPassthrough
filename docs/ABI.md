@@ -1,4 +1,484 @@
-# 0.10.18 crosshair target kind (current)
+## 2026-10-11 0.10.56 accepted routing evidence (no format change)
+
+Report225755: inventory14/favourites1 item_use, other2 pointer, passive_skipped1=3/
+2=14. User reports all requested checks working, including container transfer;
+that container outcome has no separate logged menu in this session. No errors.
+Native inventory route was finally exercised; prior .55 all-other classification
+is superseded. Chair/healing still failed and explicitly reopened for one attempt.
+Clamp requested2/returned2 at nativehealth120 and zero restore callbacks remain
+healing diagnostic evidence, not a successful healing report.
+
+## 0.10.56 input owner below a passive rendering menu (protocol33 unchanged)
+
+Observed report224351:52 action10 events ALL select menu_flags0x8840,
+native_context19, other/pointer. Hence native GetTopMostMenu(15) identifies a
+rendering layer, not necessarily input owner. .55 routing NEVER exercised the
+native inventory/favourites use events. Conversation/buying passed by user;
+take/equip/use failed. Do not treat prior synthetic tests as gameplay acceptance.
+
+UI stack/depth/flags/context offsets remain .55. .56 reverse walk skips only
+IMenu with CustomRendering0x8000, contextNone19 and none of PausesGame1,
+UsesCursor4, UsesMenuContext8, Modal16, UpdateUsesCursor0x400,
+InventoryItemMenu0x2000, ApplicationMenu0x20000. The first other menu is a barrier,
+even if its vtable is not recognized. Popups/barter cannot expose an underlying
+item menu. This is a candidate input-owner rule, NOT TESTED in game.
+
+Optional three primary vtables: Inventory215494/Favourites215307/Container215061.
+All resolve for contextual routing, otherwise fallbackClick. Container class/flags
+from pinned CommonLib; installed ProcessMessage0x14090ff70/message7 compares
+UserEvents RightEquip+0x230 and calls Flash AttemptEquip, like InventoryMenu
+ProcessMessage. Therefore both use RightEquip/device1/id0; favourites still
+Right Attack/Block. Barter vtable not whitelisted; buying keeps pointer clicks.
+No direct Flash call, no explicit extra click/confirm, no new packet/switch/action.
+MenuControls may generate its normal native mouse/message events internally.
+
+SCENE_MENU_CLICK adds passive_skipped/count, stack_index/optional selected index,
+selected_vtable/address. Read-only borrowed pointers used on UI task, not retained.
+Counter output describes delivery/selection only. User must establish actual item
+transfer/use/equip and target behavior. Existing item_click=off after restart
+restores generic Click. Native diagnostics remain ignored logs/.tools.
+
+## 0.10.55 native left mouse in inventory/favourites (protocol 33 unchanged)
+
+Wire menu_action10 keeps its existing range and layout. MenuControls dispatch:
+InventoryMenu top -> RightEquip/device1/id0; FavoritesMenu top ->
+Right Attack/Block/device1/id0; otherwise Click/device1/id0. Other actions use the
+existing table. One down (value1, held0), one up (value0, held0.05); no extra
+Click/Accept event and no PlayerControls use. The optional Java click binding also
+uses action10. Skyrim mouse remapping/menu replacements are not tested.
+
+Evidence: installed interface/controls/pc/controlmap.txt (read directly from
+Skyrim - Interface.bsa) maps mouse0 to Right Attack/Block and links RightEquip to
+that event in Item Menus. Installed ClickHandler CanProcess checks UserEvents
+click (+0x2B8); ProcessButton creates GFxMouseDown/Up at MenuCursor coordinates
+and returns handled. MenuControls skips its fallback user-event message when
+handled. FavoritesMenu message7 compares UserEvents rightAttack (+0x48) and
+leftAttack (+0x40) and invokes native use. No native addresses are guessed.
+
+Pinned CommonLib primary vtable IDs InventoryMenu215494/FavoritesMenu215307,
+resolved through current Address Library. Both optional: absence keeps generic
+Click. Top menu follows installed UI::GetTopMostMenu (AE82081) with depthLimit15:
+menuStack pointer UI+0x110, count+0x120, reverse walk first unsigned depth byte
+IMenu+0x18 <15. Read flags+0x1C/context+0x20 for logs. The borrowed stack is used
+only on the existing UI task; no menu pointer is retained. The actual native
+getter is not called because it increments the output reference.
+
+Pointer motion from the current sample is dispatched before action10; final
+point poll sees no repeated delta. Existing authorization, age/context/sequence
+checks stay in place. SCENE_MENU_CLICK logs selected route/menu/native event,
+flags, native context and current cursor coordinates, not successful consumption.
+item_click switch21 (22 names total) restores generic Click. Adapter fixtures
+verify routing/layout/order; actual native/Flash item use remains NOT TESTED.
+
+## 2026-10-11 runtime findings from 0.10.54 (no layout changes)
+
+Report logs/scene-report-20261011-221546 invalidates assuming actual potion
+restoration reaches ActorValueOwner slot6: hook installed, but zero positive
+requests/captures/applications. Native120 health while MC13.665022. The declared
+interface and synthetic callback test do not establish the real consumed-potion
+path at full native health; do not repeat guessed virtual interception.
+
+Action10 Click/device1/id0 and action5 Accept/device0/id0x1C both dispatch and
+return game_owned. Logs record20 mouse attempts; user reports ineffective clicks and E working;
+counts indicate delivery only, not item use. Click routing predates .51-.54.
+Need actual pointer/target and inventory/favourites outcome evidence.
+
+Six chair exits hit terrain_blocked. First holds MC at y128.125000238 while native
+gravity is restored, then aligns after about6.5s. Destination clearance checks
+sampled terrain only; separate NPC collision boxes are not part of clear_feet.
+Native stand state0 does not itself prove feet/controller/camera clearance.
+Door idle teleport and owned-bed grounding accepted by user. Native model hiding
+has no separately reported visibility result; workbench not tested.
+
+## 2026-10-11 native first-person arms and final repair checks (0.10.54)
+
+Only Skyrim's first-person model root is hidden while the bridge owns look/rendering.
+Original hidden bit is restored on release or model replacement; unrelated flags
+are preserved. NiRefObject reference is retained until restoration so loads cannot
+invalidate the saved pointer. Native model getter/visibility/refcount ABI verified
+in pinned CommonLib (Get3D1 slot 0x6F, flat flags 0xF4 bit 0, refcount 8,
+DeleteThis slot 1). Native_hands switch 20 restores prior visibility behavior.
+No camera height, third-person skeleton or furniture animation changes.
+
+Final build includes separate 0.10.51 recovery, 0.10.52 grounding and 0.10.53
+healing repairs. Callback regression verifies original native restore is called
+once at already-full health and the requested potion amount still reaches capture.
+Recovery scan identity includes both paired IDs and restarts on place/pair change.
+Checker now reports terrain checks, landing outcomes, native model state, health
+hook installation and raw restore requests.
+
+Final offline package-only build: 74 Rust tests (68 unit, 5 connection, 1 position),
+113 Java rule checks, 136 hook checks passed. Both package DLL hashes match release;
+Fabric manifest 0.10.54; all 21 native/Java switches agree. No install/commit.
+Hands test covers repeated hides, refcount balance, original hidden state, unrelated
+flag changes, node replacement/null and release. Real rendering and all four repairs
+are NOT TESTED. Low-chair camera cause is still uncertain; model visibility is the
+specific unwanted-rendering change. Earlier accepted A/E/F/H/I remain accepted.
+
+Next: install 0.10.54 and perform the focused four checks at the top of README.
+
+## 2026-10-11 potion request capture through menus (0.10.53)
+
+ActorValueOwner slot 6 ModActorValue is now hooked, preserving the original native
+call and capturing positive health kDamage requests even if native health is full.
+The older damage clamp no longer captures positive changes, avoiding double healing
+through nested calls. Negative damage routing is unchanged. A separate 250 ms
+healing lease is refreshed by normal play and by the already-authorized live menu
+heartbeat; combat readiness stays off in menus. Menu heartbeat retains queued
+healing until the menu closes; stale/disconnected/wrong-pair menus cannot renew it.
+Load/pair replacement resets lease and regeneration bucket. Existing healing switch.
+
+Package-only build: 72 Rust tests, 113 Java rules, 136 hook checks passed. Restore
+modifier/value filtering, raw full-health potion amount, menu pair/revision isolation
+and regeneration threshold tested. Native entry verified in pinned local CommonLib
+ActorValueOwner.h/.cpp. Actual potion callbacks and healing remain NOT TESTED.
+No installation, staging or commit. Next: 0.10.54 native first-person arm visibility.
+
+## 2026-10-11 native landing before beds/crafting (0.10.52)
+
+A fresh bed/crafting request restores native gravity and holds Minecraft while
+Actor::IsInMidair (AE 37243, bool Actor*) is true. Dispatch occurs once after
+landing, only for the original target/pair/revision, within two seconds. Focus
+or menu suspension cancels waiting activation; no delayed replay. Native furniture
+animations own position until standing; terrain-safe recovery then aligns exit.
+New furniture_ground switch 19; protocol remains 33.
+
+Package-only build: 70 Rust tests, 113 Java rules, 136 hook checks passed. Pure
+cases cover timeout, target/pair/load changes and native sleep/crafting states;
+adapter fixture verifies restored gravity, no movement writes while airborne,
+once-only bed dispatch after landing and recovery acknowledgement. Fixture needed
+cooldown, fresh timestamp, idle resume and increasing frame corrections; its traces
+identified the existing guards, which remain intact. No installation/commit.
+Real owned/unowned beds and workbenches remain NOT TESTED on this repair.
+
+Next: 0.10.53 potion restoration entry and paired menu authorization.
+
+## 2026-10-11 terrain-safe recovery (0.10.51)
+
+Recovery waits for a fresh scan around native arrival feet before requesting the
+existing token teleport. A terrain overlap can lift only the height, at most half
+a block, and requires standing clearance; walls/low ceilings hold rather than
+teleport through. Applied to door/load arrivals and intentional chair exits.
+Separate recovery exporter leaves ordinary flight pacing and saved origins alone.
+New safe_arrival switch 18 restores old recovery when off. Protocol stays 33.
+
+Offline package-only build passed: 68 Rust tests, 113 Java rules, 136 hook checks.
+Reported low-chair/exterior coordinates covered by floor examples; clear air,
+nearby nonoverlap, walls, low ceiling and excessive lift covered. Real terrain
+and gameplay remain NOT TESTED. No installation or commit.
+
+Next: 0.10.52 native grounding before bed/crafting activation; then potion capture
+and native first-person model visibility. Original play report remains below.
+
+# 0.10.50: intentional chair ownership, protocol 33
+
+Local\PassthroughPractice_link33_; sizes, frame15 and PTWORL14 unchanged from 32.
+The previously reserved target-kind word at TARGET_AT+4 (397,460) is held-seat
+status u32, strictly 0/1. Minecraft overrides E and holds movement while this
+status is fresh and admitted. It is distinct from crosshair kind and native sit
+state. Immediate held replies contain no collision geometry: they never permit
+movement; fresh seated/health/crosshair status is sent every 125 ms thereafter.
+Standing exit uses hold reason 5/admitted=false and the existing recovery token,
+then normal geometry resumes only after Minecraft acknowledges the exit position.
+
+is_chair: existing furniture checks, plus can-sit marker bit 30, no bed bit 31,
+bench type 0. Furniture without can-sit (lean/chop markers) remains guarded.
+Sitting available requires optional stand-up address and sitting switch 17; no
+new native address. StopInteractingQuick's observed true call is reused for user
+exit, independently of the automatic stand_up switch. No position, velocity,
+height or zero-gravity write occurs during deliberate furniture ownership.
+
+Intent keys: sender/world/save lineage/Minecraft identity. Ordinary release/menu
+suspension preserves it; load/death/changed pair clears it. A chair activation
+must become sit state 1..4 within four seconds. User exit calls immediately on
+WASD or a new E with age <=250 ms, then at least 2 sec apart, 5 calls at most;
+if still non-standing 2 sec later, one gave_up and movement remains held. On
+standing, keep held until the coordinate-recovery handshake completes.
+
+SCENE_SITTING state=requested (sequence, mc, sky), activation_failed,
+stand_before (attempt, sit, controls, sequence), stand_after (attempt, sit),
+gave_up, standing_aligned (mc, sky). SCENE_SEAT still logs native transitions.
+Minecraft movement reason skyrim_seated is a deliberate hold, not a freeze.
+
+# 0.10.49: tall collision coverage, protocol 32
+
+Connection record remains 456 bytes; Local\PassthroughPractice_link32_. Word 396
+(previously reserved) is u32 controls, range 0..3: bit 0 WASD physically held,
+bit 1 flight permitted (mayfly, not just current flying). Controls are zero while
+inactive/unfocused/in a screen or Skyrim menu. pt_mc_frame15 appends u32 controls
+to frame14's arguments. Save/menu/death/damage offsets are unchanged.
+
+World: PTWORL14, 398,040 bytes, header 144 (was 128). Horizontal radius X at 104
+still 4; radius Y at 128 is 4, 12 or 24; radius Z at 136 must equal X. Centers,
+location, admission and hold offsets stay unchanged. Boxes begin 144; NPCs at
+393,360; target kind at 397,456. The damage, recovery and identity tail retain
+their end-relative offsets. Active replies reject other radii and nonfinite values.
+NativeLink.WORLD_HEADER drives both collision and BridgeDamage NPC reads.
+
+world_export scans every half-block point on all six prism faces, 1536 / 3584 /
+6656 face rays for the three vertical radii. Fast motion allows up to 1536 casts
+per frame, still bounded by 2000 microseconds; ordinary pace unchanged. At least
+50 ms position history estimates velocity, limits 64 horizontal / 100 vertical.
+SCENE_WORLD_SCAN adds radius_y and fast; WORLD_SCAN also includes radius_y.
+fast_scan=16; switch order extended without reordering.
+
+# 0.10.46 to 0.10.48 (no layout change; protocol 31)
+
+Actor sit state: bits 14 through 17 of the u32 state word at Actor+0xC8.
+0 standing; 1 sitting_down; 2 waiting_to_sit; 3 seated_or_riding; 4 standing_up;
+5 lying_down; 6 waiting_to_sleep; 7 asleep; 8 waking. Other values are unknown
+and treated as non-standing by the recovery timer. Neighboring life-state
+bits 21 through 24 are not part of this value.
+
+Furniture: loaded reference's base record at +0x40; record type byte at +0x1A.
+Only type 0x28 permits reading bench type (u8 at +0xE0) and marker flags (u32
+at +0xE4). A seat is furniture with bench type 0 and marker bit 31 clear;
+bit 31 means a bed. These furniture offsets come from CommonLib and have
+not been verified in Skyrim 1.7.104. Other record types never read the extra
+furniture fields. With seat_guard on, crosshair kind is 0 for seats and
+activation requests aimed at them are refused. Bed/workbench requests remain
+unchanged. No new packet kind or format.
+
+TESObjectREFR::GetLock: optional AE ID 20223 (SE 19818), called with the target
+reference. Lock record: i8 level at +0x00, key pointer at +0x08, u8 flags at
++0x10, bit 0 means locked; the key's form ID at key+0x14. Lock data is only
+logged, never used to unlock or alter an object.
+
+Actor::StopInteractingQuick(bool): optional AE ID 38697 (SE 37752), void
+return, called as unsafe extern "C" fn(actor pointer, bool) with true, on the
+player-update thread. CommonLib confirms this signature and relocation pair:
+https://github.com/CharmedBaryon/CommonLibSSE-NG/blob/main/src/RE/A/Actor.cpp
+This mod's call in the actual game is not tested. Missing address: log disabled
+and continue normal movement. stand_up off makes no call.
+
+Timer observes only steered frames: four continuous seconds non-standing,
+two seconds between calls, five calls maximum, then a final two seconds before
+one gave_up line. Standing, release, a gap >500 ms or a backwards clock value
+resets it. After a call, recheck menu/load/readiness/cell and reacquire the
+controller before positioning the character.
+
+Logs: SCENE_SEAT state= name= was= on a sit-state change while moved;
+SCENE_CROSSHAIR gains seat=true;
+SCENE_INTERACT_TARGET sequence= target_handle= form= base= base_type= bench=
+markers= seat= lock= lock_level= key= player_sit_state= player_sit=;
+raw furniture numbers are in this interaction line, not the crosshair line.
+SCENE_STAND_UP state=before|after attempt= sit= name= around the native call,
+state=gave_up attempts=5, or state=disabled reason=missing_address.
+A before line is written before entering native code so a failure there can
+be identified. Switch bits appended: 14 seat_guard, 15 stand_up. u64 switch
+mask and all packet sizes stay the same.
+
+Collision look-ahead correction (0.10.46): vertical lead limit 0.75 block up
+to 13 blocks/second, linear growth to 1.75 at 19 blocks/second; sideways 2.75.
+The older all-speeds vertical limit of 1.75 (0.10.41) caused jump holds.
+
+# 0.10.37 to 0.10.45 (no layout change; protocol 31)
+
+Places. Skyrim cuts an outdoor world into cells of 4,096 units. The player's
+cell pointer (actor +0x60) changing is no longer a reason to let go by itself.
+With an anchor, the same worldspace form ID (cell +0x128, form ID +0x14,
+non-zero) and the character within 140 units of the anchor's target for the
+current sample, steering continues (log SCENE_ALIGNMENT state=cell_crossed).
+"Same place" for stand-ins, hits and shots: the same cell pointer, or equal
+non-null worldspace pointers. The collision scan restarts when the pair
+(bhkWorld pointer, hkpWorld pointer) changes. Not verified in game: that the
+outdoor cells of one world return the same pair.
+
+Collision packets. While a "calm" scan runs (the previous two finished scans
+had the same centre and box checksum), a packet with the last finished boxes,
+a new sequence number and fresh characters, health, damage events and
+crosshair is sent every 125 ms (log SCENE_WORLD_RESEND). The receiver cannot
+tell it from a finished scan and needs no change. A scan's centre may lead the
+player by up to 2.75 blocks sideways and 1.75 vertically (was 1.5 and 0.75).
+Dead or dying characters (life state 1 or 2 at +0xC8 bits 21..24, or health
+not above 0) are not listed as stand-ins.
+
+Attack record (connection record 400..423). Handle 0xFFFFFFFE means a shot:
+there is no target; Skyrim takes the eye as the player's position plus 113.4
+units up, the direction from the sample's yaw and pitch
+((-sin yaw cos pitch, -cos yaw cos pitch, -sin pitch) in Skyrim's x east,
+y north, z up), and the nearest living character, in the high-process list
+(the list the stand-ins come from) and the same place, whose upright middle
+line (128 units) the ray passes within 32 units of, up to 4,200 units. One ray
+with the scan's input (filter 30) is cast from the eye to that point; a hit on
+layers 1, 2, 3, 9, 10, 13, 17, 27 or 31 blocks the shot; other hits are passed
+through, at most eight. Damage: Actor::DoDamage (AE 37335), as for a hit.
+
+Menu command field (u32 at 296): 15 "Quick Inventory" (0x17), 16 "Quick Magic"
+(0x19), 17 "Favorites" (0x10), all to MenuControls like 11 to 14; 18 "Shout"
+(0x2C) to PlayerControls (CommonLib PlayerControls.cpp singleton
+RELOCATION_ID(514706, 400864); first base BSTEventSink<InputEvent*>, so the
+same virtual slot 1 call as MenuControls; skipped while notifyingHandlers
++0x1D8 or blockPlayerInput +0x1D9 is set). All are play commands: context 0,
+no Skyrim menu open. Not verified in game: 17 and 18.
+
+Minecraft 26.3 facts used, read from the jar. ServerGamePacketListenerImpl
+.handleMovePlayer replays the reported step with ServerPlayer.move, flags
+"moved wrongly" above 0.0625 squared distance unless creative, spectator,
+sleeping or changing dimension, and teleports the player back when that flag
+is set and the old box was free, or when isEntityCollidingWithAnythingNew
+finds a collision shape (LevelReader.getPreMoveCollisions) that intersects the
+new box and not the old one; the second has no creative exemption and no log
+line. Player.updatePlayerPose picks crouching or swimming (the crawl) when
+canPlayerFitWithinBlocksAndEntitiesWhen fails for the wanted pose.
+BowItem.releaseUsing needs a Player, a projectile from Player.getProjectile and
+getPowerForTime(useDuration - timeLeft) of at least 0.1; the draw is
+(t*t + 2t)/3 for t in seconds, at most 1; the arrow's speed is three times
+that and Power adds 1.0 plus 0.5 per further level to the damage per speed.
+SkyCollision.quiet(SERVER_CHECK) is set from the head to the return of
+handleMovePlayer on the server thread, quiet(POSE_CHECK) around
+canPlayerFitWithinBlocksAndEntitiesWhen; while either is set on a thread,
+SkyCollision.query returns nothing on that thread.
+
+Switch bits added (after 0 to 8): 9 server_trust, 10 pose_free, 11 slow_scan,
+12 ranged, 13 shout.
+
+# 0.10.31 to 0.10.36 (no layout change; protocol 31)
+
+Menu commands 1 to 4 (directions) may now also come from Minecraft's movement
+keys (log source=move_key) and from a held direction (source=repeat, after
+400 ms and then every 120 ms). Skyrim's side is unchanged and cannot tell them
+from arrow-key presses.
+
+Pointer totals (connection record f32 at 432 and 436) are fractions of the
+monitor multiplied by BridgeRules.pointerFactor(Options.sensitivity().get()):
+twice the setting, limited to 0.25 .. 2.
+
+Minecraft 26.3 facts used, read from the jar: `LivingEntity.onBelowWorld()` is
+declared on LivingEntity, takes no arguments, and only calls hurt with the
+fell-out-of-world damage (4.0); `Entity.checkBelowWorld()` calls it below
+`getMinY() - 64`. BridgeVoidMixin cancels it at the head for a Player in a
+bridge world. Recovery targets are accepted from getMinY() - 2000 to
+getMaxY() + 2000 (getMinY() - 56 with void_guard switched off).
+
+New log lines: `event=SCENE_COST side=skyrim|minecraft frames= avg_us= max_us=
+period_ms=` every five seconds (Skyrim: the bridge's work inside the player
+update hook; Minecraft: its after-render work); SCENE_WORLD_SCAN gains
+`cast_us=` and `scan_frames=`; SCENE_HEAL_CAPTURE (Skyrim), SCENE_HEAL_APPLY
+(Minecraft); SCENE_SWITCHES at plugin load.
+
+Checks run before every build by tools\test-java-rules.ps1: RulesCheck (the
+Minecraft side's own arithmetic) and MixinTargetsCheck, which reads the class
+files of the cached Minecraft jar with java.lang.classfile and requires every
+@Mixin class, @Inject method (with descriptor when written), @At target call,
+@Shadow member, @Accessor and @Invoker name to exist, and the hook list in
+passthrough.mixins.json to match the files. Found by experiment: the Gradle
+build succeeds with a misspelt @Inject method name.
+
+# 0.10.30 restored health, protocol 31 (current layout); 0.10.28 switches
+
+Protocol 31 / Local\PassthroughPractice_link31_. No layout or size change
+(world magic PTWORL13, 398,024 bytes; connection record 456). Raised because
+an event's Skyrim amount may now be negative, which an older bridge rejects.
+
+Damage section events (16 bytes each from WORLD_SIZE-48-528+16: u64 sequence,
+f32 share of full health, f32 Skyrim amount): share must be finite and above
+zero; amount must be finite and not zero. Positive amount: health taken, as
+before. Negative amount: health restored; Minecraft heals share x maximum
+health. Sequences, acknowledgement and the five-second expiry are shared.
+
+Source of restored health: the same hook as hits, PlayerCharacter vtable slot
+0x127 (CommonLib Actor.h CheckClampDamageModifier(ActorValue, float delta)) for
+actor value 24 (health), when the *requested* delta is positive. The value the
+game returns is passed on unchanged. Seen in logs so far only for natural
+recovery below full health; that the game calls it for a potion at full health
+is not verified.
+
+0.10.28: `pt_mc_switches() -> u64` (no arguments, any thread, no connection
+needed) returns the switched-off steps as bits in this fixed order:
+0 e_precedence, 1 hostility, 2 menu_keys, 3 damage_pool, 4 pause_shield,
+5 pointer_monitor, 6 healing, 7 menu_wasd, 8 void_guard. Read once per process
+from `switches.txt` beside the `passthrough` source folder (the project folder
+compiled into the library, the same way the log folder is found). Log line
+SCENE_SWITCHES in each game's native log.
+
+# 0.10.26 log format; 0.10.23 to 0.10.25 Minecraft side (no layout change; protocol 30)
+
+Log lines (native logs in logs\step2): `event=WORLD_SEND` / `WORLD_RECV` gain
+`boxes_sum=<16 hex digits>`: FNV-1a (offset 0xcbf29ce484222325, prime
+0x100000001b3) over the little-endian bytes of every box coordinate in packet
+order; no boxes gives CBF29CE484222325. `event=BOX_SEND` / `BOX_RECV` lines are
+written only when the process environment has PASSTHROUGH_LOG_BOXES=1 at its
+first snapshot. NPC lines are unchanged. Every write_log call reaches the file
+as one write. Nothing in the packets changed.
+
+0.10.25: BridgeRecovery accepts a recovery target with y from
+Level.getMinY() - 56 to Level.getMaxY() + 2000 (was getMinY() to getMaxY() - 2).
+Read with javap: Entity.checkBelowWorld acts only below getMinY() - 64.
+
+0.10.24: the pointer totals in the connection record (f32 at 432 and 436) are
+now fractions of the monitor's current video mode
+(Window.findBestMonitor().currentMode()), falling back to the window size. The
+Skyrim side is unchanged: it still multiplies by Skyrim's screen size.
+
+0.10.23: the attack damage float (connection record 412) is
+((max(0, item attack damage + 3 x Strength level - 4 x Weakness level)
+x recharge multiplier x 1.5 if critical) + Sharpness bonus x charge) x 1.75,
+with Sharpness bonus 0.5 x level + 0.5.
+
+# 0.10.21 and 0.10.22 damage delivery (no layout change; protocol 30)
+
+Minecraft (0.10.21): each damage event in the world packet is still consumed
+once (acknowledged by sequence), but is added to a pool instead of being
+applied at once. The pool is applied as one ServerPlayer.hurtServer call when
+the public field LivingEntity.damageCooldownTime is 10 or less, the point from
+which 26.3's LivingEntity.hurtServer takes any amount (read with javap: above
+10 it returns false for an amount not larger than lastHurt and otherwise
+applies only the difference; outside the pause it sets the field to 20).
+Entity.getInvulnerableTime() is a different, normally zero protection in 26.3;
+0.10.21 as built used it by mistake and 0.10.27 corrected that. A pool older
+than two seconds is dropped.
+
+Skyrim (0.10.22): Endpoint::idle_position() returns (sender, world) when the
+handshake is complete, the peer heartbeat is fresh and the latest position
+sample is from the peer with active = 0 and at most MAX_IDLE_AGE_MS = 500 ms
+old. On such frames the save and world IDs in the sample are zero (Java sends
+them only when active), so the match is made on sender and world against the
+damage generation key, plus the loaded-save revision. While matched,
+damage.rs keeps its queue and sets a 500 ms protection time; the health-damage
+clamp hook (PlayerCharacter vtable slot 0x127) then returns 0 for a hit without
+queueing it. The bridge's own lethal hit (death.rs) is checked first and still
+passes.
+
+# 0.10.20 menu-opening commands (no layout change; protocol 30)
+
+Menu command field (u32 at 296) gains gameplay commands (context 0, no Skyrim
+menu open, same guards and one-second spacing as 7 and 8):
+11 "Tween Menu" (scan code 0x0F), 12 "Quick Map" (0x32), 13 "Journal" (0x24),
+14 "Wait" (0x14). Names from CommonLib UserEvents.h; CommonLib MenuControls.h
+lists MenuOpenHandler among the MenuControls handlers beside
+QuickSaveLoadHandler. Sent as the same key-down/key-up ButtonEvent pair through
+MenuControls::ProcessEvent on the SKSE UI task. That MenuOpenHandler acts on a
+forwarded event is not verified in game.
+
+Minecraft: SkyrimShortcuts.java holds four KeyMappings
+(key.passthrough.open_character_menu Tab, open_map M, open_journal J,
+open_wait unbound). During play a press sends its command; while a Skyrim menu
+is open the first key sends menu command 6 (Cancel) with the menu's context.
+
+# 0.10.19 crosshair kind 6, protocol 30
+
+Protocol 30 / Local\PassthroughPractice_link30_. No layout or size change from
+protocol 29 (world magic PTWORL13, 398,024 bytes; connection record 456). The
+number was raised because the crosshair kind field (u32 at 397,440) gained a
+value that an older copy of the bridge rejects as invalid.
+
+Target kinds: 0 none, 1 other object, 2 container, 3 living character,
+4 dead character, 5 door, 6 living character hostile to the player
+(world.rs TARGET_HOSTILE = MAX_TARGET_KIND). Kind 6 comes from CommonLib
+Actor.cpp `bool Actor::IsHostileToActor(Actor*)`, RELOCATION_ID(36537, 37537):
+AE ID 37537, called as (target, player) on the player-update thread when an
+admitted snapshot is published and the crosshair reference is a living
+character other than the player. Missing address: logged once at load as
+SCENE_CROSSHAIR state=hostility_unavailable, and kind 3 is reported. Runtime
+behaviour of this call is not verified in game.
+
+Minecraft: SkyrimAttack.activates() is true for a fresh kind 1 to 5. Then the
+inventory key's click queue is drained in the handleKeybinds HEAD hook and the
+same activation request as the Interact key is queued (source=inventory_key).
+Kinds 0, 6 and any unknown kind leave the click for vanilla.
+
+# 0.10.18 crosshair target kind
 
 Protocol 29 / Local\PassthroughPractice_link29_. World magic PTWORL13, size
 398,024 (was 398,016). Eight bytes are inserted after the NPC slots and before

@@ -1,3 +1,994 @@
+## 2026-10-11 result: 0.10.56 accepted; chair/healing extra attempts authorized
+
+User says "All working" for the focused left-click checks. Report225755 confirms
+15 item_use/2 pointer dispatches and skipped passive render layers. The route fix
+ran; actual take/equip/use/category acceptance comes from the user. Record
+container pass as user-reported, not present as a container click in this log.
+Current .56 source/package tests77/113/136 pass. Commit accepted snapshot on dev
+under standing instruction before new repairs; failed chair/healing stay recorded.
+
+User explicitly requests one further attempt at chair and healing despite two
+prior failures. AGENTS records this scoped exception. Diagnose first, chair then
+healing as separate steps/versions. No repair code yet. If the extra attempt fails,
+stop and hand over; do not retry guesses. Preserve other accepted/deferred checks.
+
+## 2026-10-11 result: input-menu click repair 0.10.56 built, gameplay pending
+
+.55 failed in report224351: every one of52 clicks selected a rendering-only menu
+(flags0x8840/context19), so the native item-use branch never ran. Conversation
+and buying are user-accepted; take/equip/use remain failed until retested.
+.56 skips passive custom rendering only when contextNone19 and no input owner
+flags; other popups/menus stop the reverse/depth15 search. Container is explicitly
+recognized too. Inventory/container get RightEquip, favourites Right Attack/Block;
+barter/dialogue/unknown menus keep Click. Existing authorization, E and packets
+stay as before. item_click=off retains rollback. Logs expose skipped layers/index/
+identity; fixtures cover the actual renderer case and input barriers.
+
+Built package-only/offline:77 Rust tests,113 Java rules,136 hooks pass. Source and
+packages .56/protocol33. No install/commit. Actual use and category targeting are
+NOT TESTED; README asks focused checks. This is attempt2 of2 for left clicks;
+if it fails in game, stop and write the failure handover. Chair/healing stay stopped.
+
+## 2026-10-11 left-click input-menu selection (candidate 0.10.56), plan before code
+
+Attempt2 of2, limited to the failing item clicks. User accepts conversation and
+buying; taking/equipping/using inside inventories still fail. Report224351 has
+52 mouse dispatches but ALL route=pointer/menu=other, flags0x8840/context19.
+The .55 rule found the top rendering menu, not the input menu. No evidence yet
+that RightEquip or favourites use failed, because neither was actually sent.
+
+1. Walk the same bounded UI stack in reverse/depth<15, skipping only passive
+   custom-rendered menus with contextNone19 and no pause/cursor/menu-context/modal/
+   update-cursor/item/application input ownership flags. Flags0x8840 is the actual
+   failing case. Stop at other menus including popups; do not search through a
+   dialogue, barter or modal into an underlying inventory. Missing IDs/off keeps
+   generic Click. Log skipped count, selected stack index/vtable and flags/context.
+2. Add ContainerMenu to the explicit optional identity list (AE215061); native
+   message7 compares RightEquip+0x230 and calls Flash AttemptEquip, verified in
+   installed runtime. Inventory/container use RightEquip, favourites Right Attack/
+   Block. Other input menus keep generic Click. No double event, no new packet,
+   no E changes. Keep item_click switch21 for rollback.
+3. Add a meaningful regression with the observed0x8840 rendering menu above
+   inventory, and test popup/modal/unknown-menu barriers, barter and dialogue,
+   container routing, depth cutoff and skipped menus. Verify actual synthetic
+   sink receives one press/release after cursor motion; preserve missing/off.
+4. Version0.10.56 in all four places/Cargo.lock; Rust tests then offline package-only
+   build/Java rules/hooks. Update STATUS/MODLOG/README/ABI/Backlog. User alone
+   installs and checks take/equip/use and category targeting. Gameplay NOT TESTED.
+   If attempt2 fails, stop and hand over, without a third guessed fix.
+
+## 2026-10-11 result: left-click repair 0.10.55 built, gameplay pending
+
+Left mouse now uses the native inventory/favourites item actions instead of
+sending only a pointer click. Other menus retain pointer clicks. Pointer motion
+is sent first; one press/release, existing E behavior and authorization checks.
+The two known menu vtables and native top-menu depth/order identify the route,
+so a popup above inventory gets its own pointer click. Missing support and new
+item_click=off restore generic clicks. Native events come from installed control
+mapping and verified handlers; this candidate still needs actual gameplay.
+
+76 Rust tests, 113 Java rules, 136 hooks passed in the offline package-only build.
+ZIP DLL/manifest and22 switch indices verified. Checker route/menu counters tested
+separately. No install or commit; protocol33 unchanged. README requests only
+inventory/favourites use, holding left click, category navigation and one dialogue
+choice if available.
+Judge native item count/equip mark; healing is not the pass condition. Chair and
+healing repairs remain stopped; accepted/deferred gameplay preserved.
+
+Limitations: native Flash hover ordering and item use are NOT TESTED. Stock left
+mouse events are used; Skyrim remapped controls/custom menu vtables not tested.
+Optional click binding shares the same contextual action10. No game assets or
+native disassembly were written into tracked files.
+
+## 2026-10-11 left-click item use (candidate0.10.55), plan before code
+
+User asks to repair left-click use separately. Twenty mouse Click events reach
+Skyrim but E/Accept is the only reported working use action. Diagnose the native
+Click handler, real item/favourites input mapping and pointer dispatch order.
+Read installed game data/binary only at runtime or in ignored .tools; do not
+write game assets/decompiled code to tracked source.
+
+Native diagnosis before implementation: generic ClickHandler accepts only Click
+and queues GFx mouse down/up; the handled event skips the generic user-event
+message route. PC control map links mouse0 to Right Attack/Block, mapped to
+RightEquip in Item Menus. The native favourites message7 branch explicitly
+recognizes Right Attack/Block (UserEvents+0x48). Hence candidate repair: action10
+maps to RightEquip only with InventoryMenu on top, Right Attack/Block only with
+FavoritesMenu on top; other menus keep Click. Top selection mirrors native
+GetTopMostMenu depth15: walk menuStack backwards, first depth byte<15. Do not
+call that native getter because it retains an output reference. Inventory/Fav
+identities use optional verified vtable IDs215494/215307. Missing IDs or new
+item_click=off switch21 restores generic Click. Move queued pointer motion before
+click dispatch; never send Click and use together. Log route/native context,
+flags and cursor coordinates. Tests must exercise actual synthetic button sink,
+overlay precedence and missing/off support, not just string selection.
+
+1. Establish what the actual native handler expects for left mouse in item menus.
+   Compare against synthetic event construction; distinguish pointer selection,
+   item equip/use and delayed UI processing. Read recorded cursor/click timing.
+2. Fix only the demonstrated mismatch. Keep true pointer clicks in dialogue/map;
+   prevent duplicate uses and stale releases across menu/pair changes. If the fix
+   depends on unverified live behavior, append a rollback switch in both adapters.
+3. Add regression examples for the new event/routing rule and native adapter
+   behavior. Log chosen route and relevant state to judge actual gameplay later.
+4. Bump all four version locations together; offline package-only build after
+   Rust+Java rules+hook checks pass. Update records/Backlog and handover. Gameplay
+   not tested until user result; user alone installs. No chair/healing changes.
+
+## 2026-10-11 result: 0.10.54 report; chair/healing repair attempts stopped
+
+User accepts door exit without a later teleport, owned-bed grounding, and held
+entering E. Chair exit still fails around lower chair/table and higher stool/NPC;
+exact obstruction not established. Potion healing still fails; left click cannot
+use items while E can. Native model visibility not separately confirmed.
+
+Report logs/scene-report-20261011-221546: six terrain-blocked chair exits,17
+acknowledged recoveries, six grounding waits/dispatches,20 native mouse click
+and3 confirm dispatches, zero healing requests/captures/applications despite hook
+installation. First blocked chair interval holds Minecraft position; native
+stand-up physics remains free. Need native/controller/camera height and exact
+terrain/NPC overlap evidence before claiming the cause of apparent falling.
+
+Chair .50/.51 and healing .30/.53 are two unsuccessful approaches. Stop repairs
+and use first STATUS failure handover per AGENTS.md. No new code planned, no new
+build or repeated gameplay test. Native effect/click path must be established;
+synthetic callback tests cannot prove actual potion behavior. Version0.10.54,
+protocol33 unchanged; baseline74 Rust tests pass. Face-away-from-door is future
+work, not part of this diagnosis. Previous accepted/deferred checks preserved.
+
+## 2026-10-11 result: 0.10.51 to 0.10.54 built, focused play pending
+
+Terrain-safe arrivals, bounded bed/crafting landing, full-health/menu potion
+capture and reversible native first-person arm visibility completed as separate
+versioned steps. Final package-only build: 74 Rust tests, 113 Java rule checks,
+136 hooks passed. ZIP hashes/Fabric version and 21 switch numbers verified.
+Protocol stays 33; save origins and ordinary flight prediction stay unchanged.
+
+User accepted A/E/F/H/I and E-to-stand in C. Original sequence can leave but its
+outside teleport, low chair floor/camera, bed grounding and potion healing failed.
+Repairs are NOT TESTED in gameplay. README now requests only four focused retests;
+old deferred checks are optional. No install, stage, commit or push. STATUS holds
+present state; plans below are historical execution detail.
+
+## 2026-10-11 native first-person hands (0.10.54), plan before code
+
+The user reports a Skyrim hand in the lower chair view. Existing look.rs forces
+first-person mode but never hides Skyrim's first-person arm node, so that node
+can render beneath Minecraft's transparent view. The exact low-chair camera
+cause is not established; the unwanted native model itself can be suppressed.
+
+Pinned CommonLib verifies TESObjectREFR::Get3D1(bool), virtual slot 0x6F, and flat
+NiAVObject flags at 0xF4, bit 0 hidden (SetAppCulled). Retain the first-person node
+using NiRefObject atomic refcount at 8 while recording its original hidden bit.
+Hide only that root while bridge look owns view; reapply after native updates.
+On release/model replacement, restore only its original hidden bit and release
+our retained reference (DeleteThis slot 1 if last). Do not change other flags,
+third-person skeleton, camera height or furniture animation. Add native_hands
+switch 20 to restore old behavior. Tests cover repeated frames, visibility state,
+model replacement/null, refcount balance and already-hidden model. Separate build,
+no install or commit; actual rendering remains NOT TESTED.
+
+## 2026-10-11 repairs after 0.10.50, plan before code
+
+Observed results are recorded at the top of README/MODLOG and in STATUS.
+Keep creative flight, E/WASD standing, pause/menu seating, loaded-seat recovery,
+close combat movement and bow obstruction acceptance. Do not reopen deferred tests.
+
+1. 0.10.51: recovery must wait for a fresh terrain scan around the destination.
+   If native actor feet overlap a thin sampled floor, lift the Minecraft target
+   only enough to clear that terrain, within half a block; refuse if no standing
+   clearance exists in that bound. Existing token acknowledgement still owns the
+   teleport and saved origins stay unchanged. Apply to doors, loads and chair exits.
+   Retain movement hold while scanning. Add reported-coordinate floor, ceiling,
+   wall and clear-air regression examples; fixture must wait when scans incomplete.
+2. 0.10.52: beds/crafting furniture need Skyrim's physical grounded state. Defer
+   their activation while restoring native gravity, hold Minecraft, wait for the
+   published Actor::IsInMidair test to clear, then dispatch the request exactly
+   once. Keep ordinary activation freshness and bounded timeout; log before/after.
+   Resume through terrain-safe recovery if native feet moved. Owned bed should
+   produce Skyrim's own ownership rejection; workbench remains a regression check.
+3. 0.10.53: intercept the ActorValueOwner ModActorValue restore entry (verified
+   local CommonLib slot 6, kDamage) before a full-health clamp can erase the request.
+   Preserve the native call, suppress double capture through nested clamp, and
+   authorize healing across paired Skyrim inventory/favourites menus independently
+   of combat-ready expiry. Clear on load/pair/world replacement/disconnect. Tests
+   cover full native health, menu pause, duplicate capture, regeneration rejection,
+   and ordinary negative damage routing. Existing healing switch remains.
+4. First-person hands: investigate native model visibility and view state; do not
+   guess offsets. If supported, hide only native first-person model while bridge
+   view owns rendering, retain lifetime safely and restore its original visibility
+   on release. Separate version/plan update after evidence, not bundled above.
+
+Each code step gets tests and an offline package-only build, plus MODLOG/README,
+ABI and handover updates. Gameplay fixes remain not tested until the user's report.
+No install, commit or staging.
+
+## 2026-10-11 result: 0.10.49 and 0.10.50 built, waiting for focused play
+
+Separate flight and seating steps completed without installation or commit.
+Final package-only build: 66 Rust tests, 113 Java rule checks, 136 hook checks.
+ZIP hashes/metadata, 18 switch numbers and native/Java frame15 argument types
+verified. Quiet creative scans preserve slow pacing while standing. Records,
+packet notes, checker and README A/B/C are current. The first STATUS section
+contains present state; older repair plans/results are history.
+
+New gameplay is **not tested**. Do not label the original door sequence passed
+or ask to repeat accepted flat-ground sprint-jumps. Native seated-save recovery
+worked once in the user's last logs; deliberate sitting is a distinct new mode.
+
+## 2026-10-11: intentional chair sitting (0.10.50), plan before code
+
+0.10.49 built: 59 Rust, 104 Java rules, 136 hook checks passed. Gameplay not tested.
+The user wants E to sit and either WASD or E to stand; keep timed recovery for
+old seated saves. Do not carry Skyrim's seated actor to Minecraft's moving feet.
+
+Recognize ordinary sit-capable furniture (bench 0, marker bit 30, no bed bit 31).
+Only allow chairs when the stand-up address is available and the new sitting
+switch is on. Other non-menu furniture remains guarded (wood chopping/riding
+are separate deferred modes); beds/workbenches keep their menu handling.
+
+After a chair activation, hold Minecraft's position and restore Skyrim's saved
+gravity. Skip all Skyrim position/velocity writes while entering, seated and
+standing up; let Skyrim own its furniture animation/position. Continue view,
+scene, health and fresh input status. Publish held status every Skyrim frame
+using the formerly reserved u32 after target kind (0/1), protocol 33. No synthetic
+collision area is used for movement: Minecraft checks held status first.
+
+The intentional-seat state belongs to the paired sender/world/save. Retain it
+through focus/pause/menu suspension, clear on load/death/pair change. Activation
+must actually enter non-standing within four seconds or expire. No timed recovery
+while deliberately seated. WASD or a new, fresh E request asks native stand-up,
+with bounded retries; the activating E is never replayed as stand or activation.
+Consume all activation requests while seated. When actually standing, use the
+existing coordinate recovery handshake to align Minecraft with Skyrim's furniture
+exit position before steering resumes. Keep the saved mapping unchanged.
+
+Add pure state-transition tests for sit indefinitely, E/WASD, freshness, failed
+activation, retry cap, sender/save replacement, resume and natural standing.
+Adapter test checks zero position writes, restored gravity, native stand-up and
+coordinate handshake. Java tests check E override with no crosshair while seated
+and seat-hold precedence. Add sitting switch 17; update records/test instructions.
+Package-only build. Animation/camera/menus/doors in this mode remain not tested;
+test the user's actual enter/shopkeeper/menu/shout/sit/stand/leave sequence.
+
+## 2026-10-11: creative flight coverage (0.10.49), plan before code
+
+User accepted seamless sprint-jumps on relatively flat tested ground, but reported
+interruptions in creative ascent and falling after disabling flight. Preserve the
+ordinary jump rule. The original meadery sequence and beds/workbenches are not tested.
+The native seated-save recovery worked once; intentional sitting is the next
+separate feature: E sits, WASD or E stands, per the user's answer.
+
+Flight report: logs/scene-report-20261011-194102. Nineteen downward and two mainly
+sideways holds while rising, about 50 ms. Empty collision scans take 67 ms, then
+another frame before starting the next; a scan can be used for about two scan
+intervals. Snapshot 386 bottom 26.5 was above the requested 26.1975; snapshot 693
+had zero lead despite steady horizontal movement. A rendered-frame velocity can
+be a transient zero or a spike and the old accepted speed excludes terminal falls.
+
+Keep the half-block sampling grid and the existing two-millisecond time budget.
+For fast movement, allow up to 1536 casts per frame within that same budget. Use
+at least 50 ms of position history for the velocity; invalid/discontinuous samples
+reset it. Accept actual creative/fall speeds up to 64 sideways and 100 vertical.
+Flight or falling faster than jumps scans a taller rectangular area: horizontal
+radius 4, vertical radius 12 (24 at speeds above 40). The vertical lead in this mode
+uses the longer area; the ordinary .75/1.75 jump rule stays unchanged. No geometry
+is claimed outside the area actually scanned, and no collision check is bypassed.
+
+Add input flags (WASD=1, permission to fly=2) at previously reserved sample word 396, and
+vertical radius in an extended 144-byte world header. Protocol 32 and PTWORL14;
+all sizes/offsets/parsers updated together. Native export frame15 adds controls.
+New fast_scan switch appended at bit 16 restores the prior scan/aim behavior.
+Flight permission rather than current flight keeps tall coverage through the
+flight-off transition and the first accelerating fall.
+Tests cover every face ray at half-block spacing, full-fall and ascending coverage
+through two scan intervals, ordinary jump regression, flags and packet round trip.
+Package-only build; actual creative movement and scan costs remain not tested.
+
+## Repair build result, 2026-10-11: 0.10.48 ready, gameplay not tested
+
+Codex completed the third step from Claude Code's plan. Package-only build
+passed: 55 Rust tests, 99 Minecraft rule checks, 136 hook checks. Both 0.10.48
+packages are in dist/step5b; no game installation or commit was made. README
+has the focused A to D test, ABI notes cover the new offsets/call/log lines,
+and the Backlog records the unsupported furniture/mount modes and indoor scan.
+
+The four-second delay, two-second retries, five-call cap, resets and workbench
+menu sequence have pure tests; a simulated adapter call checks true and the
+standing-state change. The real StopInteractingQuick call, seat record offsets
+and gameplay outcomes are not tested. The log checker and package metadata
+were verified separately. Wait for the user's repair test before more changes.
+
+## 0.10.48 execution details, 2026-10-11, Codex
+
+Continuing step 3 of the repair plan immediately below. The timing rule is pure:
+watch only frames in which the bridge is about to move the character. Standing,
+a gap greater than 500 ms, a backwards time value, or explicitly releasing the
+character resets it. Nonzero sit-state changes do not restart the four seconds.
+Calls occur after four seconds and at least two seconds apart, five at most;
+wait a final two seconds before logging one gave-up outcome. No further calls
+until the watch resets. This gives the last call time to finish.
+
+Resolve Actor::StopInteractingQuick optionally (CommonLib Actor.cpp,
+RELOCATION_ID(37752, 38697), void return, actor and bool arguments). If absent,
+log that recovery is disabled and continue without it. stand_up is switch 15.
+Log before entering native code and after returning. After a call, recheck menus,
+load/readiness and cell identity, then reacquire the movement controller before
+using it: the native call may have changed the character's interaction state.
+
+Tests cover standing, first-call/retry boundaries, five calls and one gave-up,
+nonzero state changes, resets, and workbench sit/menu/stand timing. Extend the
+simulated adapter test to check the bool argument and actual standing state
+change without requiring a real game. Then run the package-only build and finish
+the README, ABI notes and Backlog for 0.10.46 through 0.10.48. Gameplay remains
+not tested, including whether recovering the seated quicksave fixes its doors.
+
+## Repairs after the first play of 0.10.45, 2026-10-11: plan for 0.10.46 to 0.10.48
+
+User, after playing 0.10.45: "B failed. There are freezes, freezes dont seem to
+happen on a set interval." and "I could not leave the building, I tried this
+after all the tests above." Written before the code, by Claude Code. Report:
+`logs\scene-report-20261011-184225`. Three steps, one version each.
+
+### What the logs say
+
+**The freezes (letter B) come from the look-ahead added in 0.10.41.** Minecraft
+held the player seven times while moving, 50 to 100 ms each time, every time
+with the reason `outside_bounds`; the session before had none. All seven are
+at the start of a jump. In Skyrim's log the four cubes involved (snapshots
+445, 457, 486, 499) were all aimed with `lead` = -1.75 blocks on the height
+axis: the scan started while the player was coming down at the end of a jump
+(7 to 8 blocks a second), so 0.10.41 placed the cube 1.75 blocks lower, as if
+the fall would go on. It ended on the ground, the player jumped again, and the
+top of the cube was 0.2 block too low. The same happens the other way round: a
+cube aimed 1.75 up at the start of a jump leaves 0.13 block under the feet at
+the landing. With the limit used until 0.10.40 (0.75) neither can happen: the
+cube then holds a whole jump with 0.3 block to spare.
+
+Nothing else froze: Minecraft drew 120 frames and Skyrim 59 frames in every
+second of that test, the six changes of Skyrim cell went through without a
+hold (0.10.37 works, and the collision scan kept its number through them, so
+outdoor cells do share one physics world), and the other holds of the session
+belong to Skyrim menus and the start.
+
+**The door: Skyrim's character had sat down on a bar stool.** The building is
+Honningbrew Meadery (cell 00015207, read from Skyrim.esm in the install
+folder, read-only, nothing copied).
+- 18:37:46 (326.3 s in Skyrim's log): E with the crosshair on an object of
+  kind 1 ("other"), 123 units from the stool at the bar, the only seat in
+  reach. Skyrim's camera jumped 230 units away and 90 up for 1.5 s, which is
+  what it does while its character sits down. From then on the camera stayed
+  6 units higher than in the two minutes before (and than in report
+  20261011-094530): Skyrim was showing its "seated" first-person view.
+- The bridge kept moving the seated character to wherever Minecraft walked.
+  Nothing in the bridge knows about sitting, and nothing made Skyrim's
+  character stand up: in Skyrim that takes a movement key, and movement keys
+  never reach Skyrim.
+- 18:38:28 to 18:38:44: E on the inner door 000A43C7 (not locked, not a way
+  out) nine times and on the front door 00015C2A once. Every press was handed
+  to Skyrim's own "use what the crosshair is on" routine and came back, and
+  nothing followed. E on Sabjorn 40 seconds earlier had opened his dialogue:
+  talking works from a seat, doors do not.
+- Going in had worked through the same pair of doors, 170 s earlier, standing.
+- The first door outside that did nothing (18:35:36) is the boilery's, which
+  needs a key: that one was Skyrim behaving normally.
+
+Not proven: that sitting is what stopped the doors. The logs fit it at every
+point and nothing else in them changed, but the sit state itself was not
+logged and Skyrim's door code cannot be read. Step 2 logs it.
+
+The quicksave made at 18:38:46 was taken in that state, so it may load seated.
+The autosave made on entering the meadery (18:35:44) is from before the stool.
+
+### Step 1, 0.10.46: the cube stays put for a jump
+
+`aim` in `passthrough/src/world_export.rs`: the limit on the height axis is
+0.75 block again up to 13 blocks a second, which is more than any jump, any
+landing after a jump and any drop of up to 2 blocks reaches, and grows evenly
+from there to 1.75 at 19 blocks a second (a fall of 4 blocks and more, fast
+flight up or down). Sideways it stays 2.75.
+
+Test for the rule (it would have caught 0.10.41): Minecraft's own jump
+arithmetic is run in the test, jumping again on landing, on ground at several
+heights; a cube aimed at any moment of that must still hold the player (0.5
+below the feet, 2.3 above, plus the tick's movement) through the whole
+following half second. And the other direction: a long fall and fast flight
+still get the full 1.75.
+
+No data format changes. No switch: this puts back what ran until 0.10.40 for
+everything a player on foot does.
+
+### Step 2, 0.10.47: a Skyrim seat is not something E uses, and the log says why a press did nothing
+
+- A crosshair target whose base record is furniture (type 0x28), has no
+  workbench (bench type 0 at +0xE0 of the record) and is not a bed (bit 31 of
+  the marker flags at +0xE4) is a seat: a chair, stool, bench, throne, also
+  the wood-chopping block and the like. Skyrim's side reports it to Minecraft
+  as "nothing to use" (kind 0), so E opens the Minecraft inventory as it does
+  on empty air, and it refuses to activate one when asked (the R key does not
+  look at the kind). Workbenches open a menu and beds open the sleep menu;
+  both stay usable. No new number in the packet, so no new protocol.
+- For every press that is handed to Skyrim, one more log line:
+  `SCENE_INTERACT_TARGET` with the target's form ID, base form ID and type,
+  whether it is locked and its lock level (TESObjectREFR::GetLock, ID 20223,
+  read only; "unknown" if the address is missing), and the sit state of
+  Skyrim's character.
+- `SCENE_SEAT` whenever that sit state changes while the bridge moves the
+  character (bits 14 to 17 of the state word at +0xC8; 0 standing, 1 to 4
+  sitting down, seated or on a horse, standing up, 5 to 8 the same for
+  sleeping).
+- Switch `seat_guard` (number 14). Tests: the seat rule; the sit-state bits.
+
+### Step 3, 0.10.48: a seated character is stood up
+
+While the bridge is moving Skyrim's character and its sit state has not been
+"standing" for 4 seconds on end, call Skyrim's own "stop using this, now"
+routine (Actor::StopInteractingQuick, ID 38697, with `true`), log the state
+before and after, and try again every 2 seconds, five times at most. The 4
+seconds leave time for a workbench's sit-down before its menu opens (an open
+menu stops the bridge moving the character, which restarts the count).
+
+This is what makes a save taken while seated playable again, and it also ends
+a ride: E on a horse mounts it, and the bridge cannot ride.
+
+Experimental: the routine has not been called by this mod before. Switch
+`stand_up` (number 15). Test: the timing rule as a pure function.
+
+### Not in these steps
+
+- Sitting, riding, mining and wood chopping from Minecraft. They need the
+  bridge to leave the character where Skyrim put it, like a menu does, and a
+  key that ends it. Backlog.
+- The arrow that is not seen (user, letter F). Backlog, as before.
+- Indoors the collision scan hardly ever turns calm: in the meadery four of
+  five scans ran at full rate although the player stood still and the number
+  of boxes did not change (2,708 each time), so their checksum must differ by
+  some small moving thing. Costs time, breaks nothing. Backlog.
+
+### Order of work and checks
+
+Step 1, step 2, step 3; each built with
+`.\tools\build-step5b.ps1 -Offline -PackageOnly` (Rust tests and the
+Minecraft-side checks run first). Then a review pass and a test list at the
+top of README.md. Version in four places per step; protocol stays 31.
+
+## Third batch result, 2026-10-11: 0.10.37 to 0.10.45 built, not played
+
+Everything in the plan below is built. Before the last build: 45 Rust tests,
+99 Minecraft-side rule checks, 136 hook checks. Install 0.10.45; the test list
+is at the top of README.md.
+
+What changed from the plan while working:
+- Added 0.10.41, a longer look-ahead for the collision cube at high speed
+  (2.75 blocks sideways, 1.75 up or down; was 1.5 and 0.75). The plan's step 1
+  fixed the pause the logs showed; this is the real "8 block limit" case
+  (flying at 20 blocks a second, a long fall), and it became testable once
+  0.10.40 had turned the centre calculation into a pure function. The later
+  steps moved up one number each.
+- The review found nothing to correct in the mod; the report checker was
+  extended instead.
+
+Decisions the agent made that the user may want to overrule (each has a
+switch):
+- The local server no longer checks the player's steps against Skyrim's
+  shapes; only the client does (0.10.38, `server_trust`).
+- Skyrim's shapes never force a crouch or a crawl, so under a low Skyrim
+  ceiling the player stands in it (0.10.39, `pose_free`).
+- A shot is a straight line from the crosshair with no flight time and no
+  drop, and it can hit friendly characters (0.10.44, `ranged`).
+
+Argued from code, not seen in a log: the cause of "blocked, very slow, cannot
+jump". Unverified game behaviour this batch rests on: that outdoor cells of
+one world share a physics world (0.10.37; harmless if not), Skyrim's
+favourites handler and player controls taking a forwarded key (0.10.43,
+0.10.45).
+
+## Third batch plan, 2026-10-11: two movement fixes, an optimisation, three features (0.10.37 to 0.10.45)
+
+User, after the first play of 0.10.36: "Continue with optimizations. Also when
+I'm moving fast the 8 block limit seems to block me and there is a small pause
+in movement before it resyncs again. Sometimes something also seems to block
+me, I can move out of whatever it is blocking me but the movement is very slow
+and I cannot jump. After that design more features and implement them. Give me
+another comprehensive test run to test." Written before the code, by Claude
+Code. One step, one version, one MODLOG entry; a switch for every step that
+rests on game behaviour nobody has seen.
+
+### What the logs and the games' code say about the two problems
+
+**The pause when moving fast is not the 8-block limit.** In report
+20261011-155446 every short hold while moving ("no_snapshot", about 0.1 s) sits
+on the same second as a change of Skyrim cell. Skyrim's outdoor world is cut
+into cells of 4,096 units, 58.5 blocks. On every change of cell the bridge let
+go of Skyrim's character, sent Minecraft an empty collision packet, worked out
+the same origin again and started a new collision scan; Minecraft held the
+player until that scan was done. Walking along a border did it over and over
+(cells 9638 and 9639 alternate five times in ten seconds). The collision cube
+itself was left only once in the session, by 0.05 block, while falling.
+
+**"Slow and cannot jump" was not reproduced in the logs,** so the cause is
+argued from Minecraft's code (26.3, read with javap), not measured:
+- Minecraft's local server checks every step the player reports. If the new
+  position touches a collision shape that the old position did not touch, it
+  sends the player back (ServerGamePacketListenerImpl.handleMovePlayer,
+  isEntityCollidingWithAnythingNew; no log line, also in creative mode). In
+  survival it also sends the player back when its own replay of the step ends
+  somewhere else ("moved wrongly"). Skyrim's shapes are part of those checks.
+  They change under the player: characters get a stand-in box that jumps to a
+  new place seven times a second, doors swing. Each change can put a shape
+  where the player just stepped, and the server undoes the step. Undone steps
+  and undone jumps are what "very slow and cannot jump" would feel like.
+- Minecraft also forces a crouch or a crawl when the standing player no longer
+  fits. A stand-in box overlapping the upper body does that. Crawling is slow,
+  and the box above stops a jump.
+- Every character near the player gets a stand-in box, dead ones included. A
+  body on the ground is an invisible pillar 1.8 blocks high.
+- The bridge's own server-side "hold" drops the player's steps on the server
+  while the client keeps moving, which sets up exactly such a correction.
+
+### 0.10.37: no pause at Skyrim cell borders
+
+Skyrim side. A change of cell keeps the character steered when three things
+hold: the bridge was steering, the new cell belongs to the same outdoor world
+as the old one, and the character is where Minecraft says it should be (within
+140 units, the tolerance already used when a session starts). Otherwise it lets
+go as before (doors, loads, fast travel). The collision scan restarts only when
+Skyrim's physics world really changed, not on every cell. Two rules that asked
+for "the same cell" now ask for "the same cell, or the same outdoor world":
+which characters get a stand-in, and which enemy a hit may land on (one hit was
+lost to that rule in the test session). The decision is a pure function with a
+test; the simulated-player test gains a border crossing.
+
+### 0.10.38: the local server trusts the client about Skyrim's shapes
+
+Minecraft side. While the local server checks one of the player's reported
+steps, Skyrim's shapes are left out, so the server's answer is always "that is
+where you are". Minecraft's own blocks are still checked. The server no longer
+holds or drops the player's steps; holding is done by the client alone, which
+is the side that moves. Switch: `server_trust=off`.
+
+### 0.10.39: Skyrim's shapes never force a crouch or crawl; bodies are not solid
+
+Skyrim has no place a standing character must duck through, so a forced crouch
+or crawl is always wrong here. While Minecraft asks "does the player fit
+standing", Skyrim's shapes are left out (both sides). Sneaking with the key is
+unchanged. Skyrim side: dead characters get no stand-in. New log line once a
+second while Skyrim shapes overlap the standing player (how many terrain tiles,
+how many characters, which pose), so the next report shows this case instead of
+leaving it to argument. Switch: `pose_free=off`.
+
+### 0.10.40: standing still costs a quarter (optimisation)
+
+Measured: Skyrim's collision ray casting takes about 1.1 ms of every frame,
+moving or not. New: when a finished scan has the same centre and the same
+boxes (checksum) as the one before, the next scan is cast at a quarter of the
+rate. While that slow scan runs, the last boxes are sent again every 125 ms
+with fresh characters, health, hits and crosshair, so nothing Minecraft relies
+on gets older than today. As soon as the player's half-block cell changes, or a
+slow scan finds different boxes (a door moved), scanning returns to full rate
+at once. Expected: about 0.3 ms per frame while standing, unchanged while
+moving. A door that moves while the player stands still is seen after about
+half a second instead of an eighth. Pure pacing function with a test. Switch:
+`slow_scan=off`.
+
+### 0.10.41: where Minecraft's half millisecond goes
+
+The Minecraft cost line gains four parts (sending, receiving and collision,
+hand and HUD capture, block capture), so the next report shows which part is
+worth looking at. No behaviour change.
+
+### 0.10.42: more Skyrim menus on the proven path
+
+Tab, M and J worked in play. Same handler, same route: I opens Skyrim's items,
+P its magic; G opens Skyrim's favourites (its own handler, not seen working
+yet). Minecraft's "social interactions" action shares P and only prints a
+notice in single-player; it is dropped in a bridge world while it shares the
+key. New command numbers 15 to 17.
+
+### 0.10.43: bows hit Skyrim enemies
+
+Today an arrow flies through an empty Minecraft world and hits nothing. New:
+when the player releases a bow with an arrow available, Minecraft sends a
+"shot" with its strength. Skyrim finds what the shot hits by geometry it
+already has: the living characters near the player, the line from the player's
+eye along the view, and one ray against walls and terrain. The nearest
+character within 0.45 block of that line, up to 60 blocks away and not behind
+a wall, takes the damage through the same call a sword hit uses.
+- Damage follows Minecraft's arrow: 6 at full draw, less in proportion when
+  drawn less, a quarter more at full draw (Minecraft's critical arrow), half a
+  point per Power level plus a half; times the 1.75 scale. Nothing below a
+  tenth of a full draw.
+- No arrow is seen flying and it does not drop: the hit lands where the
+  crosshair points when the string is released. Minecraft uses up the arrow as
+  usual.
+- Not in this step: crossbows, tridents, snowballs, an arrow you can see.
+Data: the attack record already carries a target handle and a damage amount;
+a shot uses a reserved handle value. No layout change; an older bridge would
+ignore the value as "no target". Aiming maths is a pure function with tests.
+Switch: `ranged=off`.
+
+### 0.10.44: Skyrim's shout or power on a key (experimental)
+
+Key Z sends Skyrim's own "Shout" key press and release to Skyrim's player
+controls, the same way menu keys go to its menu controls (PlayerControls,
+Address Library ID 400864, from CommonLib). A tap is the shortest shout or the
+equipped power. Nothing about this route has been seen working. Switch:
+`shout=off`.
+
+### 0.10.45: review
+
+Re-read the whole batch; corrections, if any, as their own entry.
+
+### Not in this batch
+
+A taller Minecraft world for building at any height (needs the user's
+decision), swimming, Skyrim loot in the Minecraft inventory, an optimisation of
+the scan while moving (reusing the part of the cube already scanned).
+
+## Second batch result, 2026-10-11: 0.10.28 to 0.10.36 built, not played
+
+All eight steps of the plan below are built, plus one correction from the
+re-read (0.10.36: Skyrim logs the switches at load). Together with the first
+batch that is everything from 0.10.19 to 0.10.36 waiting for one play session.
+Before the last build: 39 Rust tests, 90 Minecraft-side rule checks, 124 hook
+checks. Install 0.10.36; the test list (letters A to M, with the switch that
+turns each risky step off) is at the top of README.md.
+
+Two things changed from the plan while working:
+- The hook check (every hook into Minecraft verified against the Minecraft
+  jar) was not planned. It was added in 0.10.33 after an experiment showed the
+  build accepts a misspelt hook target, which would stop Minecraft at start.
+- No optimisation of the collision packet path: measured at about 80
+  microseconds a frame, it is not worth touching a proven path.
+
+Decisions the agent made in this batch that the user may want to overrule:
+- Skyrim's natural recovery is not forwarded as healing; potions, food and
+  healing magic are (0.10.30).
+- Pointer speed is tied to Minecraft's Mouse Sensitivity setting, which also
+  sets the camera speed (0.10.32).
+- In a bridge world the player cannot fall out of the world at all (0.10.33).
+
+Unverified game behaviour this batch rests on: Skyrim calling its health
+function for a potion drunk at full health (0.10.30).
+
+## Second batch plan, 2026-10-11: 0.10.28 to 0.10.35
+
+User, before testing the first batch: "Continue working. I haven't tested
+anything. Plan ahead once more and implement those designs. Give me a
+comprehensive testing list afterwards." Written before the code, by Claude
+Code. Same rules as the first batch: one step, one version, one MODLOG entry.
+
+What decides the choice of steps this time: sixteen steps will then be waiting
+for one play session, and every round trip to the user is expensive. So the
+batch starts with two steps that lower the cost of a failure (switches, and
+checks for the Minecraft side), adds features only on paths that are proven or
+that the logs already show, and replaces guessing about speed with measurement.
+
+### 0.10.28: switches, so one step can be turned off without a rebuild
+
+A text file the user can create, `switches.txt` in the project folder (never
+committed; no file means everything is on). One `name=off` per line, `#` for
+comments. Both games read it once at start through the bridge library, which
+already knows the project folder (it writes its logs there), and log what is
+off. Names: `e_precedence` (E goes back to containers and bodies only),
+`hostility` (Skyrim is never asked whether a character is an enemy),
+`menu_keys` (Tab, M, J, wait), `damage_pool` (hits delivered one by one as
+before), `pause_shield`, `pointer_monitor` (pointer measured against the window
+as before), and for this batch `healing`, `menu_wasd`, `void_guard`.
+The parser is a pure function with a test. Minecraft asks the library for the
+set through one new entry point; nothing is added to the packets.
+
+Why: if one of the unverified steps misbehaves or crashes a game during the
+test, the user can turn that one off and carry on with the rest of the list.
+
+### 0.10.29: checks for the Minecraft side, run before every build
+
+The Minecraft side has no automated tests, and 0.10.21 shipped a wrong rule
+because of it. The rules that are plain arithmetic or yes/no decisions move
+into one small file with no Minecraft code in it (BridgeRules.java): attack
+damage with recharge, critical, Sharpness, Strength and Weakness; what E does
+for each crosshair kind; when a pooled hit may be delivered; which arrival
+heights are refused, allowed without building, or normal; what the pointer is
+measured against. The mod calls these functions, and a check program
+(minecraft\diagnostics\RulesCheck.java) runs worked examples against them.
+New script tools\test-java-rules.ps1; tools\build-step5b.ps1 runs it after the
+Rust tests and stops on a failure.
+
+Limit, stated plainly: this checks the bridge's own arithmetic. It cannot check
+an assumption about how Minecraft behaves, which is what was wrong in 0.10.21.
+
+### 0.10.30: Skyrim healing heals your Minecraft hearts
+
+Today Skyrim potions, food and healing spells do nothing useful: Minecraft owns
+the health and never hears of them. The logs already show the path: the same
+Skyrim function that reports damage as a negative health change reports
+restored health as a positive one (report 20261011-094530, natural recovery at
+0.008 per frame while Skyrim's health was below full).
+
+- **Skyrim:** a positive health change while Minecraft is taking hits is
+  queued like a hit, as "restore this fraction of full health". Skyrim's own
+  slow natural recovery is filtered out, because Minecraft has its own
+  (food): a single restore of at least 0.5% of full health is forwarded at
+  once (potions, food); smaller ones are added up for a quarter second and
+  forwarded only if they come faster than 2.5% of full health per second
+  (healing spells do; natural recovery, about 0.7% per second, does not).
+  Skyrim's own health is left exactly as the game computes it.
+- **Minecraft:** heals the player by that fraction of maximum health, at once,
+  outside the damage pool.
+
+Data: the damage list in the world packet already carries "fraction" and "raw
+amount" per event. A restore travels as an event with a negative raw amount.
+No size change, but an older bridge rejects a negative amount, so the protocol
+number goes to 31 (name link31). Checklist: lib.rs, windows.rs, the range
+checks in world.rs and BridgeDamage.java, tests for the new value.
+
+Unknown: whether Skyrim calls that function for a potion drunk at full Skyrim
+health (which is the normal case here, since Skyrim's health is kept full).
+If it does not, nothing is forwarded and the log shows no SCENE_HEAL line.
+
+### 0.10.31: W, A, S, D and held directions in Skyrim menus
+
+In Skyrim's own window W, A, S and D move through menus. Here only the arrow
+keys and the wheel did. While a Skyrim menu is open, the Minecraft movement
+keys now send the same four directions, and a direction that is held repeats
+(after 0.4 s, then every 0.12 s) so long lists can be scrolled. A direction
+only repeats if it was pressed while that menu was open, so walking into a
+conversation with W held does not scroll it. Minecraft side only.
+
+### 0.10.32: pointer speed follows Minecraft's mouse sensitivity
+
+0.10.24 fixed the pointer at one Skyrim pixel per mouse unit and left no way
+to change it. The travel is now multiplied by twice Minecraft's Mouse
+Sensitivity setting (Options > Controls > Mouse Settings): 100% keeps
+0.10.24's speed, 200% doubles it, 50% halves it, never below a quarter.
+Minecraft side only.
+
+### 0.10.33: no "fell out of the world" in the bridge world; any depth
+
+0.10.25 stopped arrivals 56 blocks below Minecraft's floor because Minecraft
+hurts anything more than 64 below it. In a bridge world that rule protects
+nothing: the ground is Skyrim's, and the player is held in place whenever
+Skyrim's ground is not known. So in a bridge world only, the player is exempt
+from that damage (one small hook on the function that applies it, read from
+the 26.3 code: LivingEntity.onBelowWorld), and arrival is allowed down to
+2,000 blocks below the floor as it already is above the ceiling. Deep water,
+deep caves and low-lying interiors then work like anywhere else. Building is
+still limited to Minecraft's own range.
+
+### 0.10.34: measure what the bridge costs per frame
+
+Offline measurement for this plan: handing Minecraft the collision packet
+costs about 80 microseconds per frame (1,500 boxes, release build), about 1%
+of a frame, so that path is left alone. What is not known is the cost inside
+the games. Both sides now time their own per-frame bridge work and log one line
+every five seconds (frames, average and worst microseconds); Skyrim's
+collision scan also logs the time its ray casts took. The next report then
+answers "does the bridge slow the games" with numbers, and shows where an
+optimisation would pay.
+
+### 0.10.35: a checker for the test report
+
+New script tools\check-test-report.ps1: reads the newest collected report and
+prints, for each feature on the test list, what the logs show (counts and the
+first line of evidence), and lists error lines. For whichever agent reads the
+result, and readable by the user.
+
+### After this batch (not planned in detail)
+
+Candidates, most useful first as far as can be judged without play: ranged
+attacks (bows) on Skyrim enemies; swimming in Skyrim water; a taller Minecraft
+world so building works at every height (needs the user's decision); Skyrim
+loot into the Minecraft inventory; Skyrim characters colliding with placed
+blocks; fluids contained by Skyrim terrain.
+
+## Batch result, 2026-10-11: 0.10.19 to 0.10.27 built, not played
+
+All eight steps of the plan below are built, plus one correction found by
+re-reading the batch afterwards (0.10.27: the damage pool of 0.10.21 watched
+the wrong Minecraft counter and would have changed nothing). 33 Rust tests
+pass. Install 0.10.27; the combined test list is at the top of README.md.
+
+Decisions the agent made that the user may want to overrule, each revertible
+on its own:
+- E on an enemy opens the Minecraft inventory; E on a friendly character talks
+  (0.10.19). R is unchanged.
+- A paused Minecraft makes Skyrim's character unhurtable (0.10.22).
+- Pooled Skyrim hits all count in full, at most two deliveries a second
+  (0.10.21).
+- Pointer speed is one Skyrim pixel per mouse unit, slower than before
+  (0.10.24).
+- Arrival is allowed outside the building range; building is not (0.10.25).
+
+Unverified facts the batch rests on (the first play will show): Skyrim's
+menu-opening handler accepts a forwarded key event (0.10.20); the game's
+hostility test answers as expected (0.10.19); a paused Minecraft keeps drawing
+frames (0.10.22).
+
+## Batch plan, 2026-10-11: eight steps, 0.10.19 to 0.10.26
+
+User, after accepting 0.10.18: "Plan ahead on making new features or
+optimisations. Continue working on all of these and give me another test run
+once complete." This plan was written before any of the code. Each step is its
+own version with its own MODLOG entry, so one can be reverted alone. None can
+be played before the next is written, so each uses paths already proven in
+game where it can, and says where it cannot. One combined test list goes at the
+top of README.md at the end. Written by Claude Code.
+
+Order: the step that changes the protocol number comes first, then features,
+then the optimisation.
+
+### 0.10.19: Skyrim's E takes precedence
+
+The user's rule: "Only open the minecraft inventory when E won't do anything in
+skyrim." So E (the Minecraft inventory key) now activates whatever Skyrim's
+crosshair is on: a character to talk to, a door, a container, a body, a plant,
+an item, a lever. With nothing under the crosshair it opens the Minecraft
+inventory as before. Inside a Skyrim menu it stays Skyrim's confirm.
+
+The one case that needs new information: an enemy. Skyrim's own E does nothing
+to an enemy in a fight, and in a fight the crosshair is usually on one, so E
+must still open the Minecraft inventory there. Skyrim therefore reports one more
+crosshair kind, 6 "living and hostile to the player", using the game's own test
+(CommonLib Actor::IsHostileToActor, Address Library ID 37537; called with the
+looked-up character and the player, about seven times a second, only when the
+crosshair is on a living character). If that address is missing the kind stays 3
+and E talks.
+
+R is unchanged: it activates anything, and takes all inside a container.
+
+Data: crosshair kind gains value 6. Layout and size are unchanged, but an older
+copy of the bridge would reject 6 as invalid, so the protocol number goes to 30
+(name link30) and the two cannot be mixed. Checklist: lib.rs, windows.rs,
+world.rs maximum and test, attack.rs classification and test, NativeLink
+comment, SkyrimAttack rule.
+
+Logs: SCENE_CROSSHAIR shows kind=6 for an enemy; SCENE_INTERACT_SEND already
+names the key.
+
+Unknown: whether IsHostileToActor answers as expected for every kind of enemy
+(animals, summoned creatures, a guard after a crime). Not tested.
+
+### 0.10.20: keys that open Skyrim's own menus
+
+Today the only way to open Skyrim's character menu, map or journal is to click
+into Skyrim's window. New remappable keys in Minecraft (Controls > Key Binds >
+Miscellaneous):
+- Tab: Skyrim's character menu (skills, magic, items, map).
+- M: Skyrim's map.
+- J: Skyrim's journal (quests, and the system page with save and load).
+- "Skyrim: wait": no key by default.
+Inside any Skyrim menu, Tab goes back, as it does in Skyrim.
+
+Same path as F5/F9, which is proven: one key event with Skyrim's own user event
+name ("Tween Menu", "Quick Map", "Journal", "Wait", from CommonLib
+UserEvents.h) sent to MenuControls, where Skyrim's MenuOpenHandler lives beside
+the quicksave handler. Same guards as quicksave: fresh active frame, loaded
+game, no Skyrim menu already open, the paired save, at most 250 ms old, one
+second apart. New command numbers 11 to 14, context 0. No layout change.
+
+Unknown: whether MenuOpenHandler acts on a forwarded event as the quicksave
+handler does. The log shows dispatch only; the user sees the menu or not.
+
+### 0.10.21: continuous Skyrim damage counts
+
+Measured (report 20261011-094530): of 99 Skyrim hits under 2 damage, Minecraft
+took 7, because Minecraft refuses a hit within half a second of the last one
+unless it is larger. Fire, frost, poison and burning arrive as many tiny hits.
+
+Change, Minecraft side only: forwarded hits are added to a pool. The pool is
+delivered as one hit whenever Minecraft's half-second hit pause is over
+(invulnerable time of 10 ticks or less), then emptied whatever Minecraft does
+with it (armour, shield, creative mode). Nothing is delivered during the pause,
+so nothing is refused. Effect: at most two Skyrim hits a second reach
+Minecraft, each carrying everything received since the last, so the total
+matches what Skyrim dealt. A single sword blow is delivered at once when no
+pause is running, otherwise up to half a second late.
+
+Difference to know: Minecraft's own rule lets a second mob hit inside the pause
+count only for the part that exceeds the first. With the pool, hits from two
+Skyrim enemies in the same half second both count in full. That is how Skyrim
+itself treats them.
+
+Logs: SCENE_DAMAGE_POOL per hit added; SCENE_DAMAGE_APPLY per delivery with the
+number of hits and their sum.
+
+### 0.10.22: protection while Minecraft is paused
+
+Measured (same report): while Minecraft was paused or not the active window,
+113 hits took 52.6 health from Skyrim's character directly, and 22 hits waiting
+for delivery were thrown away.
+
+Choice made (the user asked for all candidates to be worked on; this one is a
+gameplay decision and can be reverted alone): a paused Minecraft protects the
+Skyrim character, as pausing protects a Minecraft player. While the same
+Minecraft session and world that was steering the character keeps sending
+"not active" frames, Skyrim hits on the player are cancelled and logged, not
+queued. Hits already waiting are kept instead of dropped, and still expire after
+five seconds, so a short pause loses nothing and a long one delivers nothing
+late. Protection ends half a second after the frames stop (Minecraft closed,
+crashed, minimised without drawing, or in another world), and Skyrim's own
+damage applies again.
+
+Skyrim side only. No layout change: Skyrim reads the "not active" frame it used
+to ignore. The decision (deliver, protect, pass through) becomes a pure
+function with a test.
+
+Logs: SCENE_DAMAGE_SHIELD state=on/off, and one line per cancelled hit.
+
+### 0.10.23: Sharpness, Strength and Weakness
+
+Outgoing damage today is the held item's attack damage only. Add, Minecraft
+side only, using Minecraft's own numbers:
+- Sharpness: plus 0.5 per level plus 0.5 (level 1 gives 1, level 5 gives 3).
+- Strength effect: plus 3 per level. Weakness: minus 4 per level.
+The sum is floored at zero, then the existing scale (x1.75), recharge and
+critical rules apply. Smite, Bane of Arthropods and Impaling are left out:
+Minecraft ties them to kinds of Minecraft creature. Logged in SCENE_ATTACK_SEND.
+
+### 0.10.24: pointer speed no longer depends on the Minecraft window size
+
+Backlog item. Pointer travel is "fraction of the Minecraft window", so the
+three window sizes the user has played with (854, 682 and 372 wide) gave three
+speeds: about 3, 3.8 and 6.9 Skyrim pixels per mouse unit. Change, Minecraft
+side only: divide by the size of the monitor the window is on instead of the
+window. With Skyrim at the monitor's resolution that is one Skyrim pixel per
+mouse unit, the same as a desktop pointer, whatever the window size. The
+pointer will feel slower than the user is used to; a full-screen Minecraft
+keeps exactly its present speed. If the monitor cannot be read the window size
+is used as before.
+
+### 0.10.25: arriving at any height
+
+The only place the height limit is enforced is the teleport after a door, a
+load or fast travel: a target outside Minecraft's building range (y -64 to 319,
+Skyrim heights about -11,600 to 15,000 at home) is refused. Walking was never
+limited, because the ground comes from Skyrim's collision, not from Minecraft
+blocks, and a Minecraft player can stand above the building limit.
+
+Change, Minecraft side only: accept targets from 56 blocks below the world
+floor (Minecraft only starts "fell out of the world" damage 64 below it) up to
+2,000 blocks above the ceiling. At home that is Skyrim heights of about -15,500
+to 155,000: sea level (-14,000) and every mountain. What does not change:
+blocks can only be placed and kept inside Minecraft's own range, and Minecraft
+says so itself when you try. Diving deeper than about Skyrim -16,000 would take
+Minecraft void damage; not guarded in this step.
+
+The larger answer (a taller Minecraft world so building works everywhere) is a
+world-format change and is left in the Backlog for the user to decide.
+
+### 0.10.26: the bridge's own log is far too heavy (optimisation)
+
+Measured from logs/step2 on 2026-10-11: the folder holds 34 GB; one session
+wrote 2.6 GB per game. In the last session 1,678,181 of 1,724,764 Skyrim lines
+(97%) were BOX_SEND: every collision box of every snapshot as its own line,
+about 7,000 lines a second, written on Skyrim's player-update thread and
+mirrored as BOX_RECV on Minecraft's render thread. Each line is also written in
+about seven separate system calls because the file is unbuffered.
+
+Change:
+- Each log call is written with one system call.
+- A snapshot logs one WORLD line with the box and character counts and a
+  checksum of each, the same on both sides, so "what Skyrim sent is what
+  Minecraft received" can still be proven. The per-box and per-character lines
+  are written only when the environment variable PASSTHROUGH_LOG_BOXES=1 is set
+  before starting the games.
+- New script tools\prune-logs.ps1 for the user to run: lists what it would
+  delete, and with -Delete removes all but the newest sessions' raw logs.
+  Nothing is deleted by the agent.
+A test proves the default output has no per-box lines and that the checksum
+changes when a box changes.
+
+Expected effect: Skyrim and Minecraft main threads each stop making tens of
+thousands of file writes a second; raw logs shrink by roughly 97%. Frame-rate
+gain is not measured and cannot be from here.
+
+### Not in this batch
+
+- A taller Minecraft world for building at any height (Backlog; needs the
+  user's decision and a backup of the bridge world).
+- Moving items between the two inventories, shared time and weather, fluid
+  containment, NPC collision with placed blocks.
+
 ## Skyrim quicksave and quickload keys (0.10.7)
 
 User request while 0.10.6 was being built: F5 should do Skyrim's quicksave and
@@ -455,6 +1446,28 @@ full_damage 1.75 and 7, and matching native health loss.
 
 ## Backlog (deferred by the user, not scheduled)
 
+Repair follow-ups updated 2026-10-11 (0.10.54 played):
+- Door exit without later teleport accepted; future update: face away from the
+  exit door rather than somewhat toward it. Deferred, not implemented.
+- Chair exits still fail at lower chair/table and high stool/NPC. .50 exit and
+  .51 terrain correction unsuccessful. User explicitly reopened ONE more attempt
+  2026-10-11 after .56 acceptance. Native height/camera and exact terrain/NPC cause
+  unknown; diagnose first. Earlier failure handover remains in STATUS history.
+- E/WASD stand request, held entering E, focus/menu seating and seated-save recovery
+  accepted. Native hand visibility .54 not separately confirmed.
+- Owned-bed grounding .52 accepted. Unowned-bed sleeping and workbench not tested.
+- Potion healing .30/.53 unsuccessful; stopped after two attempts. Hook installs
+  but no restore callbacks. Left-click item use failed while E works; contextual
+  .55 selection failed:52/52 clicks chose a passive renderer (other/pointer),
+  never item_use. .56 skips passive layers and adds container item route; all
+  take/equip/use/category tests accepted by user. Potion healing reopened for ONE
+  extra attempt 2026-10-11; native restore path diagnosis first. Stock mouse only;
+  continuous damage remains deferred.
+- Creative ascent/flight-off falling, flat-ground jumps, close enemy movement and
+  bow wall/sky cases remain accepted. Do not repeat accepted checks.
+- Indoor non-calm scans, visible flying arrow, riding, mining/chopping and other
+  unsupported modes remain deferred; no request to reopen them.
+
 Gathered 2026-10-11 from README, STATUS, MODLOG and this file. Items are
 unfinished or untested things already recorded there, grouped by area. Nothing
 here is planned in detail yet.
@@ -464,9 +1477,24 @@ Combat and health:
   Still open: a Skyrim-only death does not reset Minecraft health, and no death
   message from Minecraft is shown in Skyrim's window.
 - A Skyrim hit that lands while the bridge is not ready still lowers Skyrim
-  health; protection while disconnected or recovering is undecided.
-- Other incoming damage sources (falls, magic, scripted health changes) and
-  full healing behaviour are unverified.
+  health; protection while disconnected or recovering is undecided. A paused or
+  unfocused Minecraft now protects the character (0.10.22; accepted
+  2026-10-11: two pauses cancelled 5 hits in report 20261011-155446).
+- Other incoming damage sources (falls, magic, scripted health changes) remain
+  unverified. Potion healing failed in .30 and .53 gameplay: native restore hook
+  installed but no positive requests. Stopped after two approaches; actual effect
+  path at full native health unknown. Food/spells not tested; do not claim healing
+  forwarding works from the synthetic fixture.
+- Bows hit Skyrim enemies since 0.10.44 (draw/hits accepted in 0.10.45;
+  wall/empty shots accepted in 0.10.50): a straight-line
+  shot resolved in Skyrim by geometry. Open there: crossbows, tridents and
+  thrown things; an arrow that is seen, flies and drops; creature sizes (every
+  creature counts as a human-sized body).
+- Skyrim's shout or power on a key since 0.10.45 (built, not played,
+  experimental): a tap only. Open: holding for longer shouts; Skyrim's own
+  spells in the hands.
+- Not started, candidate for a later batch: swimming (Skyrim's water does not
+  exist for Minecraft; the player walks on the sea floor).
 - **Rapid small Skyrim hits are mostly lost (measured 2026-10-11).** Minecraft
   refuses a new hit for half a second after the last one unless it is larger.
   Skyrim's continuous damage (a flame or frost stream, burning, poison) arrives
@@ -475,13 +1503,25 @@ Combat and health:
   12.76 half-hearts were requested and 0.69 applied. Ordinary weapon blows are
   fine (9 of 11 taken, the other 2 shield-blocked). Candidate fix: add up the
   refused amounts and deliver them with the next hit Minecraft will accept.
+  Done as a pool delivered when Minecraft's hit pause is over (0.10.21,
+  corrected in 0.10.27). Ordinary hits behave in report 20261011-155446 (21
+  deliveries; every refusal was a raised shield). **Continuous damage itself is
+  still not tested**, and no hit has yet arrived inside the hit pause in play.
 - Critical hits (0.10.13), weapon wear (0.10.14) and armour/shields against
   Skyrim hits (0.10.15) are verified for a wooden sword, fists, 14 armour
-  points and a shield. Axes and other weapon types are untested. Still missing:
-  enchantment damage (Sharpness and the like), temporary effects such as
-  Strength, sweep attacks and knockback on enemies.
+  points and a shield. Axes and other weapon types are untested. Sharpness,
+  Strength and Weakness are counted since 0.10.23 (accepted 2026-10-11; the
+  logged numbers match the formula exactly; Weakness not tried). Still
+  missing: Smite and the other creature-specific enchantments (left out on
+  purpose), Fire Aspect, sweep attacks and knockback on enemies.
 - Shield blocking and knockback take their direction from the nearest Skyrim
   character within about 8 blocks, which may not be the real attacker.
+- Stand-in boxes for Skyrim's characters: dead ones have none since 0.10.39;
+  every living creature still gets one human-sized box whatever its size, and
+  the boxes move seven times a second. They no longer make the local server
+  undo steps (0.10.38) or force a crawl (0.10.39); accepted for the close-combat test in the 0.10.50 report; the original
+  problem they are meant to end ("blocked, very slow, cannot jump") was never
+  captured in a log.
 - Minecraft's attack recharge meter does not follow the bridge recharge timer.
 - No Skyrim swing animation or knockback; kill attribution and crime reactions
   are unverified.
@@ -493,7 +1533,12 @@ Skyrim menus:
   currently "fraction of the Minecraft window" mapped to Skyrim's screen, so a
   small Minecraft window makes the pointer fast (854x480 against 2560x1440 gave
   about 3 Skyrim pixels per mouse unit). Add a scaling factor or a fixed
-  pixels-per-unit mapping when the user asks.
+  pixels-per-unit mapping when the user asks. Done in 0.10.24 by measuring
+  against the monitor instead of the window (accepted 2026-10-11: a 395-wide
+  window measured against a 1920-wide monitor). The speed now follows
+  Minecraft's Mouse Sensitivity setting (0.10.32; not exercised yet, the
+  factor stayed 1.0 in the test session); a setting of its own, apart from the
+  camera's, does not exist.
 - First pointer movements travelling double: the measured speed is now kept
   between menus (0.10.12, untested). The first menu of a Skyrim session still
   starts from the stored value until one larger movement is measured.
@@ -515,9 +1560,22 @@ Skyrim menus:
   SkyrimInteraction.beforeKeybinds. To decide when it is scheduled: whether a
   hostile living character counts as "E does something" (Skyrim's own E does
   nothing to an enemy in a fight, but Minecraft cannot yet tell hostile from
-  friendly), and whether R then stays a separate key.
-- No text entry, no held-key repeat; rebinding and non-dialogue menus are
-  largely untested.
+  friendly), and whether R then stays a separate key. Done in 0.10.19
+  (accepted 2026-10-11; Skyrim reported "enemy" 31 times in the test
+  session): an enemy is reported as its own crosshair kind and leaves E to
+  the Minecraft inventory; R stays as it was. Both choices are the agent's and
+  are the user's to overrule.
+- Skyrim's items (I), magic (P) and favourites (G) menus since 0.10.43
+  (accepted in the 0.10.45 report). An item cannot be made a favourite from Minecraft (Skyrim's F
+  key in its item menu is not forwarded).
+- Skyrim's character menu, map, journal and wait menu can be opened from
+  Minecraft (Tab, M, J, and an unbound key; 0.10.20, accepted 2026-10-11 for
+  Tab, M and J; the wait key is untried). Fast travel by a left click on the
+  map works (first seen in report 20261011-155446).
+  Skyrim's favourites menu and its other quick keys are not forwarded.
+- No text entry; rebinding and non-dialogue menus are largely untested. Held
+  directions repeat and W, A, S, D navigate since 0.10.31 (accepted in the 0.10.45 report; earlier
+  W/S menu checks were initially deferred).
 - Skyrim and Minecraft inventories are separate; no looting or trading into
   Minecraft's inventory.
 
@@ -529,12 +1587,28 @@ Travel and saves:
 - Height: Minecraft's 384 blocks cover only about 26,900 Skyrim units. With the
   current saved origin, Skyrim heights below about -11,600 (including sea
   level) or above about 15,000 cannot be reached; the bridge now says so.
+  Since 0.10.25 (built, not played) arriving is allowed from about -15,500 to
+  155,000, because only the teleport was ever limited; **building** is still
+  limited to Minecraft's own range. Open: (a) a taller Minecraft world so
+  blocks can be placed anywhere. Earlier Minecraft versions allow a world from
+  y -2032 to 2031 through a per-world data pack that replaces the overworld's
+  height (from general knowledge, not checked against 26.3); that is a change
+  to the bridge world's format, needs a backup and the user's decision, and
+  has not been tried. (b) Below Minecraft y -128 (about Skyrim
+  -16,000, deep sea floor) Minecraft's own void damage applies; not guarded.
+  Guarded since 0.10.33 (built, not played): the player in a bridge world is
+  exempt, and arrival is allowed 2,000 blocks below the floor.
 - Long-distance and high-altitude travel need the coordinate-window remapping
   planned under "Next priority" below.
 - Save revisions/rollback, automatic choice of the matching Minecraft world,
   and restoring historical inventory are not implemented.
 - Collision coverage is a four-block sampled cube; thin objects can be missed
-  and fast movement can cause holds.
+  and fast movement can cause holds. Since 0.10.37 a change of outdoor cell no
+  longer lets go (that, not the cube, was the pause every 58 blocks), and since
+  0.10.41 the cube looks up to 2.75 blocks ahead sideways. Cell-crossing play
+  passed in Test 0.10.45; its vertical lead caused jump holds and is corrected
+  in 0.10.46 as described above. At creative flying speed the cube can still
+  be outrun for part of the time.
 
 Building and world:
 - Water and lava flow through Skyrim terrain (no fluid containment).
@@ -554,8 +1628,43 @@ Rendering:
 Tooling:
 - Rust tests were repaired in 0.10.8 and run before every build. They use fake
   objects; nothing tests the Java side automatically (Gradle has no tests).
+  Since 0.10.29 the Java side's own arithmetic is checked before every build
+  (BridgeRules with RulesCheck), and since 0.10.33 every hook into Minecraft is
+  checked against the Minecraft jar (MixinTargetsCheck). Still unchecked by
+  any machine: code that calls Minecraft, and anything about how either game
+  behaves.
+- Steps resting on unverified game behaviour can be switched off by the user
+  in switches.txt (0.10.28). A new step of that kind should get a switch.
 - Sprint state is not logged; Skyrim-window keyboard/mouse forwarding into
   Minecraft does not exist.
+- Log volume: the native logs no longer write a line per collision box
+  (0.10.26). Still heavy and left alone: the Minecraft client log gets six
+  lines per block capture, about 55 a second, and both native logs get a line
+  per rendered frame. logs\step2 held 34 GB on 2026-10-11; only the user
+  removes it (tools\prune-logs.ps1 -Delete).
+- Measured but not acted on (report 20261011-101205): Skyrim's collision scan
+  takes up to 2 ms of every frame (about 2,700 ray casts per scan, a scan every
+  0.15 s) whether or not the player moved. Scanning less often while standing
+  still would give that time back; not planned, moving objects would need a
+  separate answer. Since 0.10.34 both games log what the bridge costs per
+  frame (SCENE_COST) and the scan logs its ray-casting time, so the first
+  report after that says whether this is worth doing. Measured offline and
+  left alone: handing Minecraft the collision packet costs about 80
+  microseconds a frame. First in-game numbers (report 20261011-155446, Skyrim
+  at 59 frames a second): the bridge takes about 1.1 ms of every Skyrim frame
+  on average, worst frames about 2 ms, and nearly all of it is this ray
+  casting (about 7.4 ms per scan over 7 frames). That is about 6.5% of a
+  frame, all the time, including while standing still: the one optimisation
+  the numbers point to. In Minecraft the after-render work averages about
+  0.5 ms at 120 frames a second. Done for standing still in 0.10.40 (a calm
+  scan at a quarter of the rate; built, not played, saving not yet measured).
+  Still open for moving: reuse the part of the cube already scanned (a shift
+  of half a block needs about a fifth of the rays); a larger change to a
+  proven path, not started. Minecraft's cost line has four parts since 0.10.42.
+- A mistake of method worth keeping: 0.10.21 was built against the wrong
+  Minecraft counter because the bytecode was searched for expected words
+  instead of printed and read (found and fixed in 0.10.27 before any play).
+  Print the code.
 
 ## Mouse pointer in Skyrim dialogue (0.10.4, accepted)
 

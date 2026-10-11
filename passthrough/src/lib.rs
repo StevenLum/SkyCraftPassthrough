@@ -15,6 +15,9 @@ mod recovery;
 mod damage;
 mod attack;
 mod death;
+mod switches;
+mod cost;
+mod seat;
 mod world;
 mod world_export;
 mod look;
@@ -27,7 +30,7 @@ use std::io;
 use std::time::{SystemTime, UNIX_EPOCH};
 use windows::SharedMemory;
 
-pub const PROTOCOL_VERSION: u32 = 29;
+pub const PROTOCOL_VERSION: u32 = 33;
 pub const HEARTBEAT_TIMEOUT_MS: u64 = 2_000;
 pub const POLL_INTERVAL_MS: u64 = 100;
 const RECORD_SIZE: usize = 456;
@@ -302,6 +305,28 @@ impl Endpoint {
         })
     }
 
+    /// The connected Minecraft's session and world while it is alive but sending "not active"
+    /// frames (paused, or not in play). Only for recognising a pause; never for steering.
+    pub fn idle_position(&mut self) -> io::Result<Option<(u64,u64)>> {
+        if self.closed || self.role != Role::Skyrim {
+            return Err(io::Error::other("invalid position receiver role"));
+        }
+        self.memory.update(|record| {
+            let own = record.slots[0];
+            let peer = record.slots[1];
+            let sample = record.position;
+            let now = windows::now_ms();
+            let idle = own.session == self.session && peer.pid != 0
+                && own.acknowledged_session == peer.session
+                && peer.acknowledged_session == self.session
+                && own.protocol == PROTOCOL_VERSION && peer.protocol == PROTOCOL_VERSION
+                && sample.sender == peer.session && sample.active == 0 && sample.valid()
+                && sample.sent_ms <= now && now - sample.sent_ms <= position::MAX_IDLE_AGE_MS
+                && peer.heartbeat_ms <= now && now - peer.heartbeat_ms <= HEARTBEAT_TIMEOUT_MS;
+            Ok(idle.then_some((sample.sender,sample.world)))
+        })
+    }
+
     pub(crate) fn send_world(&mut self, mut snapshot: world::Snapshot) -> io::Result<world::Snapshot> {
         if self.closed || self.role != Role::Skyrim { return Err(io::Error::other("invalid world sender")); }
         snapshot.sender = self.session;
@@ -353,6 +378,30 @@ mod tests {
         let decoded = Record::decode(&bytes).unwrap();
         assert_eq!(decoded.slots[0].pid, 0);
         assert_eq!(decoded.slots[1].session, 8);
+    }
+
+    /// Timing only, not a pass/fail check; does nothing in a normal test run. To measure:
+    /// `$env:PASSTHROUGH_TIMING='1'; $env:RUST_TEST_NOCAPTURE='1'`
+    /// `.\tools\cargo.ps1 test --release --offline world_receive_cost`
+    #[test]
+    fn world_receive_cost() {
+        if std::env::var("PASSTHROUGH_TIMING").as_deref()!=Ok("1") { return; }
+        let name=format!("cost_{}",windows::now_ms());
+        let mut mc=Endpoint::open(&name,Role::Minecraft,PROTOCOL_VERSION).unwrap();
+        let mut sky=Endpoint::open(&name,Role::Skyrim,PROTOCOL_VERSION).unwrap();
+        mc.poll().unwrap(); sky.poll().unwrap(); mc.poll().unwrap();
+        let sample=mc.send_position(position::Sample{world:1,frame:1,active:1,..position::Sample::default()}).unwrap();
+        let boxes=(0..1500).map(|i|{let x=i as f64*0.5;[x,0.0,0.0,x+0.5,0.125,0.5]}).collect();
+        sky.send_world(world::Snapshot{recipient:sample.sender,world:1,epoch:1,sequence:1,active:true,admitted:true,
+            radius:4.0,boxes,..world::Snapshot::default()}).unwrap();
+        let rounds=2000;
+        let started=std::time::Instant::now();
+        for _ in 0..rounds {
+            let snapshot=mc.receive_world().unwrap().expect("fresh snapshot");
+            std::hint::black_box(snapshot.encode().unwrap());
+        }
+        let each=started.elapsed().as_secs_f64()*1e6/rounds as f64;
+        println!("world receive + encode: {each:.1} microseconds per frame, 1500 boxes, {rounds} rounds");
     }
 
     #[test]

@@ -72,7 +72,7 @@ public final class BridgeWorld {
         if(!eligible(player.level())) return false;
         var box=player.getBoundingBox();
         var requested=box.expandTowards(movement).inflate(.5);
-        String reason=BridgeRecovery.holding() ? "save_position_recovery" : SkyrimMenus.active() ? "skyrim_menu" : SkyCollision.coverageReason(player.level(),requested);
+        String reason=BridgeRules.motionReason(BridgeRecovery.holding(),SkyrimMenus.active(),SkyCollision.seated(),SkyCollision.coverageReason(player.level(),requested));
         if(reason.equals("ready") && !armed.containsKey(player)) {
             var below=new AABB(box.minX,box.minY-1,box.minZ,box.maxX,box.minY+.05,box.maxZ);
             boolean ground=SkyCollision.query(player.level(),below).stream().anyMatch(s->s.terrain());

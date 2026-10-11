@@ -16,9 +16,10 @@ public final class SkyrimInteraction {
         return key;
     }
     /**
-     * The inventory key (E) acts like Skyrim's own E where that is clearly meant: it confirms
-     * in an open Skyrim menu, and it opens the Skyrim container or body under the crosshair.
-     * Everywhere else the press is left alone and Minecraft opens its inventory as usual.
+     * Skyrim's E takes precedence over the Minecraft inventory key: it confirms in an open
+     * Skyrim menu, and it activates whatever Skyrim's crosshair is on (character, door,
+     * container, body, object). Only when Skyrim's E would do nothing (no target, or an
+     * enemy) is the press left alone, and Minecraft opens its inventory as usual.
      * Runs before Minecraft reads its key presses.
      */
     public static void beforeKeybinds() {
@@ -27,9 +28,9 @@ public final class SkyrimInteraction {
         var inventory=mc.options.keyInventory;
         boolean wasDown=inventoryHeld;inventoryHeld=inventory.isDown();
         boolean menu=SkyrimMenus.active();
-        boolean loot=!menu && mc.gui.screen()==null && BridgeWorld.eligible(mc.level)
-            && SkyCollision.admitted() && SkyrimAttack.lootTarget();
-        if(!menu && !loot) return;
+        boolean use=!menu && mc.gui.screen()==null && BridgeWorld.eligible(mc.level)
+            && SkyCollision.admitted() && BridgeRules.skyrimE(SkyrimAttack.activates(),SkyCollision.seated());
+        if(!menu && !use) return;
         boolean clicked=false;
         while(inventory.consumeClick()) clicked=true;
         if(!clicked || wasDown) return;

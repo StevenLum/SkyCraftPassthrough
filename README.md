@@ -1,3 +1,892 @@
+# 0.10.56 left-click tests passed; chair and healing reopened
+
+User reports **all .56 tests working**: inventory use/equip, taking, held click,
+category targeting and favourites. Logs report15 native item-use clicks and2
+pointer clicks; no errors. Container pass is user-reported, not independently
+present in this session's logs. Conversation/buying acceptance is retained.
+
+Chair exit and Minecraft healing remain failed. User requests one more attempt
+for each after the previous two failures; permission is in AGENTS.md. Diagnosis
+first, separate repair steps; no new repair build/test instruction yet.
+
+# 0.10.56: inventory left-click selection repair ready to test
+
+Conversation clicks and buying are **passed** from your .55 report. Inventory
+left-click take/equip/use **failed**: all52 logged clicks selected a rendering
+menu above the inventory, so the previous item-use repair never ran.
+
+.56 corrects that selection and includes container inventories. Built and
+packaged; gameplay **not tested**. Checks:77 Rust tests,113 Minecraft rules,
+136 hook checks passed. Protocol33; no install or commit.
+
+Close both games and run from D:\Documents\ChatGPT\Game modding:
+
+```powershell
+.\tools\install-build.ps1
+```
+
+Expect three INSTALLED lines, including Fabric0.10.56. Start both games normally.
+
+1. **Inventory (I):** left click a highlighted usable food/potion. Its Skyrim
+   count should drop by one. Left click equipment: its equip mark should change.
+   Hold left click for a second: no repeated consumption. E should still work.
+2. **Target selection:** switch categories, then click a different item. The
+   intended item should be used; category clicks should navigate without using
+   the previously highlighted item.
+3. **Taking:** open a chest/container and left click an item. It should transfer
+   to your inventory once; verify the item/count moved.
+4. **Favourites (G):** left click an already-favourited consumable or equipment.
+   Expect one use/equip. Judge Skyrim count/equip mark, not Minecraft healing.
+
+No need to repeat the long conversation/shop/chair sequence or accepted movement,
+door and bed tests. Chair exits and Minecraft potion healing remain unresolved;
+workbench and earlier deferred checks remain not tested. Door facing is future work.
+
+Rollback: `item_click=off` in project switches.txt, restart both games. This
+restores generic Click. Logs should now show inventory/container/favourites
+`route=item_use`, and `passive_skipped` when a renderer was above the input menu.
+Those logs prove the route, not item consumption. .56 is attempt2 of2: if it still
+fails, the next action is a failure handover under AGENTS.md, not a third guessed
+repair. Stock mouse mappings/custom menu changes are not tested.
+Older sections below are historical.
+
+# 0.10.55: left-click item-use repair ready to test
+
+Built and packaged; gameplay **not tested**. The bridge previously sent a generic
+pointer click in every menu. This build sends Skyrim its native use action in
+inventory and favourites, while other menus keep pointer clicks. Pointer movement
+is sent before use. E still confirms the highlighted item.
+
+Checks passed: 76 Rust tests, 113 Minecraft rules, 136 hook checks. Both packages
+are in dist/step5b, protocol 33. No installation or commit.
+
+Close both games and run from D:\Documents\ChatGPT\Game modding:
+
+```powershell
+.\tools\install-build.ps1
+```
+
+Expect three INSTALLED lines, including Fabric 0.10.55. Start both games normally.
+
+1. **Inventory (I):** hover/highlight a food, potion or equipment item you can
+   already use with E. Left click: expect that item to be used/equipped once;
+   a consumable count should decrease by one. Hold left click for a second:
+   expect no extra uses. Select another item and check that it is the one used.
+   Click an inventory category too: it should navigate, without consuming an item.
+2. **Favourites (G):** left click an already-favourited consumable or weapon.
+   Expect one use/equip, without needing E. E should still work.
+3. **Dialogue, if available:** click one choice under the pointer. Expect the
+   selected choice to work. No need to repeat the whole shop/chair sequence.
+
+Judge the native item count or equip mark. Minecraft potion healing is still
+unresolved and is not the pass condition for this test. Chair exits remain
+unresolved; the accepted door/bed/movement checks need no repeat. Workbench and
+previously deferred checks remain not tested. Door facing is future work.
+
+Rollback: add `item_click=off` to switches.txt in this project and restart both
+games; this restores the previous generic click route. New click logs report
+inventory/favourites `route=item_use`, other menus `route=pointer`. The optional
+menu-click binding uses the same native left mouse action. Game/menu mods or
+remapped Skyrim mouse buttons are not tested; this repair uses stock left mouse
+use events. Older sections below are historical reports/instructions.
+
+# 0.10.54 gameplay report: door and owned bed passed; chair and healing failed
+
+Latest user report, 2026-10-11:
+- Passed: leaving the building without a later teleport; owned-bed grounding;
+  holding the E that entered a chair keeps the character seated.
+- Failed: lower-chair exit with a table ahead and high-stool exit with an NPC
+  nearby still fall through the ground. Their involvement is not proven.
+- Failed: potions still do not heal Minecraft. Left click no longer uses items;
+  E works. The logs confirm click delivery, not successful item use.
+- Not tested: workbench, separate native-hand visibility outcome, and previously
+  deferred J/K/M/N/O. Previously accepted movement/menu/combat checks stay accepted.
+
+Chair exit and healing are stopped after two unsuccessful approaches under
+AGENTS.md; the first section of STATUS.md contains the failure handover and evidence.
+No new build or install is requested. Sources/packages remain 0.10.54, protocol33.
+74 Rust tests pass; this does not verify the failing gameplay. Facing away from
+an exit door is recorded for a future update, not implemented.
+
+Collected evidence is in logs/scene-report-20261011-221546. To read its summary:
+
+```powershell
+.\tools\check-test-report.ps1 -Report .\logs\scene-report-20261011-221546
+```
+
+Expected: six blocked terrain destinations, one installed restore hook, zero
+restore requests/captures/applications, and twenty dispatched mouse clicks.
+The older test instructions below describe previous builds, not pending retests.
+
+# 0.10.54 repair build: ready for focused gameplay testing
+
+**Built; gameplay NOT TESTED.** 74 Rust tests, 113 Minecraft rule checks and
+136 hook checks passed. Both packages are in dist/step5b. No installation or commit.
+Protocol remains 33; use the two packages together.
+
+Your latest report accepted creative movement (A), E-to-stand (C), focus/menu
+seating (E), seated save/reload (F), close combat movement (H) and obstructed/empty
+bow shots (I). Leaving after the original sequence worked, but the subsequent
+outside teleport is a failure. Lower chair exit fell through the world; native
+hand appeared. Owned bed initially rejected as airborne. Potions did not heal.
+Workbench, actual shout, continuous damage, sensitivity/wait, height/depth and
+other combat variants remain not tested/deferred. Do not repeat accepted tests.
+
+The repairs, in separate builds:
+- 0.10.51 checks terrain before a recovery teleport, avoiding feet inside the
+  sampled floor at chair exits and door arrivals. Bounded upward correction only.
+- 0.10.52 lets Skyrim land before activating a bed/crafting station and aligns
+  the exit afterwards. Existing Skyrim ownership and interaction rules apply.
+- 0.10.53 captures requested healing before Skyrim's full-health clamp, and keeps
+  that request while using a live paired inventory/favourites menu.
+- 0.10.54 hides Skyrim's first-person arm model while bridge view is active and
+  restores its prior visibility on release. Camera height itself is unchanged.
+
+Close both games. From D:\Documents\ChatGPT\Game modding run:
+
+```powershell
+.\tools\install-build.ps1
+```
+
+Expect three INSTALLED lines, including Fabric 0.10.54. Start both games normally.
+
+**1. Lower chair:** use the chair that failed. Sit with E, then try WASD to stand;
+repeat with E to stand. Expected: stay above the floor and resume normal walking;
+no Skyrim hand in the bridged view. Inspect the view both seated and after standing.
+A held entering E means keeping E pressed after sitting; you should remain seated
+until releasing it and pressing it again. That subcheck was not confirmed before.
+
+**2. Door exit:** leave the meadery through its front door, release all movement
+keys and wait ten seconds. Expected: remain at the exterior exit without falling
+or another unrequested teleport. Re-enter and leave once more. The full earlier
+shopkeeper/menu/shout sequence need not be repeated just to check the exit.
+
+**3. Bed and optional workbench:** with Minecraft active, E on the same NPC-owned
+bed. Expected: ownership rejection, without pausing Minecraft to land and without
+an airborne message. If an available bed permits sleep, complete/cancel it and
+check movement afterwards. Workbench is still untested: if you try one, open its
+menu, use or cancel it, then check movement/doors afterwards.
+
+**4. Potion:** with Minecraft hearts missing, use a Skyrim health potion through I,
+close the menu and check hearts. Repeat through G/favourites. On one try leave the
+menu open ten seconds after drinking before closing it. Expected: hearts recover
+when gameplay resumes; the potion is not lost just because the menu stayed open.
+
+Report which of 1-4 passed/failed. I will collect logs directly. Older deferred
+J/K/M/N/O are still optional and are not prerequisites for these repairs.
+
+Fallback switches (switches.txt in the project folder; restart both games):
+`safe_arrival=off`, `furniture_ground=off`, `healing=off`, `native_hands=off`.
+Each restores the behavior for that individual step. No switches are required
+for the normal test.
+
+## 2026-10-11 potion request capture through menus (0.10.53)
+
+ActorValueOwner slot 6 ModActorValue is now hooked, preserving the original native
+call and capturing positive health kDamage requests even if native health is full.
+The older damage clamp no longer captures positive changes, avoiding double healing
+through nested calls. Negative damage routing is unchanged. A separate 250 ms
+healing lease is refreshed by normal play and by the already-authorized live menu
+heartbeat; combat readiness stays off in menus. Menu heartbeat retains queued
+healing until the menu closes; stale/disconnected/wrong-pair menus cannot renew it.
+Load/pair replacement resets lease and regeneration bucket. Existing healing switch.
+
+Package-only build: 72 Rust tests, 113 Java rules, 136 hook checks passed. Restore
+modifier/value filtering, raw full-health potion amount, menu pair/revision isolation
+and regeneration threshold tested. Native entry verified in pinned local CommonLib
+ActorValueOwner.h/.cpp. Actual potion callbacks and healing remain NOT TESTED.
+No installation, staging or commit. Next: 0.10.54 native first-person arm visibility.
+
+## 2026-10-11 native landing before beds/crafting (0.10.52)
+
+A fresh bed/crafting request restores native gravity and holds Minecraft while
+Actor::IsInMidair (AE 37243, bool Actor*) is true. Dispatch occurs once after
+landing, only for the original target/pair/revision, within two seconds. Focus
+or menu suspension cancels waiting activation; no delayed replay. Native furniture
+animations own position until standing; terrain-safe recovery then aligns exit.
+New furniture_ground switch 19; protocol remains 33.
+
+Package-only build: 70 Rust tests, 113 Java rules, 136 hook checks passed. Pure
+cases cover timeout, target/pair/load changes and native sleep/crafting states;
+adapter fixture verifies restored gravity, no movement writes while airborne,
+once-only bed dispatch after landing and recovery acknowledgement. Fixture needed
+cooldown, fresh timestamp, idle resume and increasing frame corrections; its traces
+identified the existing guards, which remain intact. No installation/commit.
+Real owned/unowned beds and workbenches remain NOT TESTED on this repair.
+
+Next: 0.10.53 potion restoration entry and paired menu authorization.
+
+## 2026-10-11 terrain-safe recovery (0.10.51)
+
+Recovery waits for a fresh scan around native arrival feet before requesting the
+existing token teleport. A terrain overlap can lift only the height, at most half
+a block, and requires standing clearance; walls/low ceilings hold rather than
+teleport through. Applied to door/load arrivals and intentional chair exits.
+Separate recovery exporter leaves ordinary flight pacing and saved origins alone.
+New safe_arrival switch 18 restores old recovery when off. Protocol stays 33.
+
+Offline package-only build passed: 68 Rust tests, 113 Java rules, 136 hook checks.
+Reported low-chair/exterior coordinates covered by floor examples; clear air,
+nearby nonoverlap, walls, low ceiling and excessive lift covered. Real terrain
+and gameplay remain NOT TESTED. No installation or commit.
+
+Next: 0.10.52 native grounding before bed/crafting activation; then potion capture
+and native first-person model visibility. Original play report remains below.
+
+## 2026-10-11 play report: 0.10.50 partly accepted, repairs pending
+
+User: A creative movement passed; B original sequence allowed leaving, but an
+unrequested move followed outside; C E stand passed (held-E wording unclear);
+D lower chair caused falling through the world and a Skyrim hand in the view;
+E focus/menu sitting passed; F seated save/reload passed; G owned bed failed
+with an airborne message until pausing Minecraft let Skyrim land; workbench
+not tested; H close combat movement passed; I obstructed/empty bow shots passed;
+L potion healing failed from both items and favourites. J/K/M/N/O not tested.
+No previously deferred tests are being requested again.
+
+Collected logs/scene-report-20261011-213834, protocol 33, no ERROR/disabled lines.
+Seven native intentional exits/alignment acknowledgements and one automatic
+loaded-seat stand-up. Chair token 19 put feet at y=127.997305849, below the indoor
+floor; the following frames fell. Exterior token 6 put feet at y=40.013725063,
+then Minecraft fell hundreds of blocks and Skyrim recovered to another exterior
+position (token 7). The extra outside teleport and chair fall have the same
+candidate cause: recovery trusts native actor feet without checking Minecraft's
+sampled terrain. Potion request did not reach the clamp callback: no healing
+capture/application; only positive clamp was 9999 on load. Inventory suspension
+also sets damage readiness to zero, so a healing callback must retain paired
+menu authorization. Hand visibility cause not yet established.
+
+Baseline: 66 Rust tests passed. No installation, commit, or staged changes.
+Next: separate repairs for recovery placement, furniture activation grounding,
+health restore capture, and first-person hand visibility. Gameplay repairs not
+started. Keep one feature per version; plan before code.
+
+# 0.10.50 ready: creative movement and intentional sitting
+
+Built, **gameplay not tested**: 66 Rust tests, 113 Minecraft rule checks and 136
+hook checks passed. Both 0.10.50 packages are in dist/step5b. Protocol 33; install
+all three files together. Codex did not install or commit anything.
+
+## What changed
+
+- Creative flight/falling (0.10.49): taller collision coverage, steadier movement
+  prediction and more rays per frame within the existing two-millisecond budget.
+  Flight permission keeps tall coverage after flight is switched off. The grid
+  still uses half-block spacing; movement still waits for fresh scanned geometry.
+  0.10.50 also preserves slower scan pacing while standing still in creative.
+- Chairs (0.10.50): E sits; Skyrim owns the chair animation and position while
+  Minecraft stays still. There is no four-second forced stand during intentional
+  sitting. WASD or E requests standing; Minecraft aligns with Skyrim's exit
+  position before walking resumes. E while seated stands you up first, rather
+  than activating the object under the crosshair. R uses the same seat mode.
+- Existing seated saves still have the 0.10.48 timed recovery. It actually stood
+  the character up in the last logs, and the front door then worked.
+
+Your flat-ground sprint-jump test passed on the ground tested; no repeat required.
+The original enter / shopkeeper dialogue and menus / shout / chair / leave
+sequence is **not tested**. Workbenches and beds are **not tested**. They were
+regression checks because these share furniture records with chairs and may use
+sit/stand animations. They are not needed to demonstrate the movement repair or
+the original door sequence; they do not gate the focused tests below.
+
+## Test this build
+
+Close both games. From D:\Documents\ChatGPT\Game modding run:
+
+```powershell
+.\tools\install-build.ps1
+```
+
+Expect three INSTALLED lines, with Fabric 0.10.50. Start both games as usual.
+
+**A. Creative movement:** outdoors in Minecraft creative, fly upward, move/turn
+while flying, then turn flight off and fall. Expected: no brief interruptions in
+ascent or descent. Report where any interruption happened; the logs will show
+coverage, scan size and time. Dense terrain and actual frame costs are not tested.
+
+**B. The original door sequence:** start outside Honningbrew Meadery, enter,
+talk to the shopkeeper, navigate the same menus, try the Skyrim shout (Z), then
+press E on the chair. Stay seated for at least ten seconds. Expected: you remain
+seated. Press WASD to stand, walk to the front door and press E. Expected: you
+leave. The key-locked boilery door is not this front-door test.
+
+**C. E to stand:** sit with E again, release E, then press E again (you can look
+away from the chair). Expected: you stand, Minecraft's inventory does not open,
+and walking resumes once the positions align. There should be no automatic
+stand-up before that second press. Report whether B and C both worked.
+
+No need to repeat already accepted flat-ground jumps or the other deferred tests.
+Beds/workbenches remain unverified; report their behavior whenever you use them.
+
+## Reversible switches
+
+Add a line to switches.txt in this project, then restart both games:
+
+| Line | Effect |
+| --- | --- |
+| fast_scan=off | Use the previous scan shape, look-ahead and scan pace |
+| sitting=off | Return to guarding chairs and timed recovery; E opens inventory on a chair |
+| stand_up=off | Disable automatic recovery of an unowned seated save/mount; deliberate WASD/E exit remains |
+
+Riding, mining and wood chopping remain unsupported. These are separate from
+ordinary chairs, stools and benches with a can-sit marker.
+
+After a report, Codex collects/checks the logs directly. The report checker now
+counts SCENE_SITTING outcomes and skyrim_seated movement holds. These new modes
+and their animations/camera are **not tested in gameplay**.
+
+# Repairs 0.10.46 to 0.10.48: sprint-jumps and seated Skyrim characters
+
+0.10.46 and 0.10.47 were built by Claude Code; Codex completed and built
+0.10.48. Checks passed: 55 Rust tests, 99 Minecraft rule checks, 136 hook
+checks. Both 0.10.48 packages are ready in dist/step5b.
+Gameplay of these three repairs is **not tested**. Protocol stays 31; use all
+three installed files from the same package version. Nothing was committed.
+
+## What changed
+
+- **Sprint-jump freezes (0.10.46):** the collision cube no longer aims too far
+  down after a jump. Vertical look-ahead is 0.75 block up to 13 blocks/second,
+  rising to 1.75 at 19 blocks/second; sideways stays 2.75. The new jump test
+  fails with the old 0.10.41 limit and passes with this correction.
+- **Seats (0.10.47):** E and R leave Skyrim chairs, stools, benches and other
+  furniture without a menu alone. E opens Minecraft's inventory there. Beds
+  and crafting workbenches remain usable. Logs now identify the target,
+  its lock and Skyrim's sitting state for each forwarded press.
+- **Recovering a seated save (0.10.48, experimental):** after four continuous
+  seconds non-standing while the bridge moves the character, ask Skyrim to
+  stop using the seat or mount. Try again every two seconds, five calls at
+  most; if still non-standing two seconds after the last call, log one
+  gave-up outcome. A menu, pause, load, disconnection or normal standing
+  resets the timer. No forced call is made during a menu. The new routine's
+  behavior in the real game is **not tested**.
+
+The meadery door failure fits a character left seated after using the bar
+stool. That cause is still **not proven**; the new logs will distinguish a
+seated character from a locked door or another problem.
+
+## Reversible switches
+
+In switches.txt beside this README, add the relevant line and restart both
+games. No file, or no line for the step, means it is on.
+
+| Line | Effect |
+| --- | --- |
+| seat_guard=off | Restore the previous chair/stool/bench activation behavior |
+| stand_up=off | Disable automatic stand-up attempts if they cause a problem |
+
+The furniture offsets used by seat_guard have not been verified in Skyrim
+1.7.104. If beds or workbenches stop working, report it and use seat_guard=off.
+Sitting, riding, mining and wood chopping from Minecraft are still unsupported.
+
+## Test 0.10.48
+
+From this project folder, close both games and run:
+
+```powershell
+.\tools\install-build.ps1
+```
+
+Expect three INSTALLED lines, with Fabric 0.10.48. Start both games as usual.
+Use a copy of your save for the experimental recovery test; keep the original
+seated quicksave and the earlier entry autosave so either remains available.
+Report A through D as passed or failed, and which save was used for B.
+
+**A. Sprint-jumps:** outdoors, sprint-jump about 200 blocks. Expected: no short
+freezes at the start of a jump. The client log should have no outside_bounds
+holds during this run.
+
+**B. Seated quicksave and the front door:** load the last quicksave inside
+Honningbrew Meadery. With both games connected and normal play active, wait
+about five seconds before pressing E on the front door. Expected: Skyrim's
+character is standing and you leave the building. If it still fails, load
+the autosave from entering the meadery and try the front door there; report
+both outcomes. The boilery's locked door is not this test. If recovery makes
+the game misbehave, stop, add stand_up=off and restart both games.
+
+**C. Chair:** aim at a chair and press E. Expected: Minecraft's inventory
+opens, Skyrim's character does not sit. Close the inventory and press R on
+the chair: expected, no activation.
+
+**D. Workbench and bed:** use a workbench, spend several seconds in its menu,
+then close it. Use a bed and close the sleep menu. Expected: both menus still
+work, and returning from them does not produce a forced stand-up attempt.
+
+Then run:
+
+```powershell
+.\tools\collect-scene-logs.ps1
+.\tools\check-test-report.ps1
+```
+
+The Seats section now counts stand-up before/after calls, gave_up and disabled.
+For B, the desired evidence is SCENE_SEAT returning to state=0, or an after
+line with sit=0, followed by the door transition. A before line without an
+after line is important if the game stops inside the experimental routine.
+There is no need to repeat the other tests you deferred.
+
+# Versions 0.10.37 to 0.10.45: movement fixes, an optimisation, bows, more keys
+
+Built successfully; gameplay **not tested**: nothing in this batch has been
+played. Before the build ran: 45 Rust tests, 99 checks of the Minecraft side's
+own arithmetic, 136 checks that every hook into Minecraft matches Minecraft's
+own code. Made by Claude Code. Install 0.10.45; all three files together
+(protocol 31, as before).
+
+## What changed
+
+**The two problems you reported**
+- **The pause when moving fast** was not the 8-block limit. The logs show it
+  happened each time you crossed one of Skyrim's map cells, every 58 blocks:
+  the bridge let go of Skyrim's character and started over, and Minecraft held
+  you for about a tenth of a second. Crossing a cell outdoors no longer lets
+  go (0.10.37). The real 8-block case, moving faster than a sprint (flying, a
+  speed effect, a long fall), is eased too: the collision cube now looks
+  further ahead (0.10.41).
+- **Being blocked, very slow and unable to jump.** This did not happen in the
+  session I have logs for, so the cause is worked out from Minecraft's code,
+  not seen. Minecraft's own local server undid your steps whenever a Skyrim
+  shape appeared where you had just stepped, and Minecraft forces a crawl when
+  a shape overlaps your upper body. The shapes that move are the invisible
+  stand-in boxes for Skyrim's characters, and dead bodies had one too. Now:
+  the local server no longer checks your steps against Skyrim's shapes
+  (0.10.38), Skyrim's shapes never force a crouch or crawl, and dead bodies
+  have no box (0.10.39). If it still happens, the log now records it.
+
+**Optimisation**
+- **Standing still costs Skyrim about a quarter of what it did** (0.10.40).
+  The collision scan took about 1.1 ms of every Skyrim frame, moving or not.
+  When nothing around you changes it now runs at a quarter of the rate.
+
+**New**
+- **More Skyrim menus:** I opens Skyrim's items, P its magic, G its favourites
+  (0.10.43).
+- **Bows work on Skyrim enemies** (0.10.44). Draw and release with the
+  crosshair on an enemy up to 60 blocks away. No arrow is seen flying and it
+  does not drop: the hit lands where the crosshair points when you let go.
+  Walls and ground stop it. Minecraft uses up the arrow as usual.
+- **Skyrim's shout or power on Z** (0.10.45, experimental). A tap only.
+
+## If something goes wrong: more switches
+
+Same file as before: `switches.txt` next to README.md, one line per step,
+restart both games. New lines for this batch:
+
+| Line | What it turns off | Use it when |
+| --- | --- | --- |
+| `server_trust=off` | The local server trusting your steps | You get pulled back or stuck worse than before |
+| `pose_free=off` | Never being forced to crouch or crawl | You stand inside things you should duck under |
+| `slow_scan=off` | The slower scan while standing still | Doors or moving things block you after they moved |
+| `ranged=off` | Bow shots reaching Skyrim | Shots hit the wrong thing or Skyrim misbehaves |
+| `shout=off` | The Z key | Pressing Z does anything bad |
+
+The earlier lines still work (`hostility`, `e_precedence`, `menu_keys`,
+`menu_wasd`, `damage_pool`, `pause_shield`, `healing`, `pointer_monitor`,
+`void_guard`).
+
+## Test 0.10.45
+
+Close both games and run `.\tools\install-build.ps1`. Expect three INSTALLED
+lines with Fabric 0.10.45. Start both games as usual.
+
+Say which letters passed or failed; I will read the logs myself. If a letter
+fails, carry on with the others. A to D are the ones that matter most.
+
+**A. Start-up and what already worked**
+You get control, can walk, place and break a block, hit an enemy with a sword,
+open a chest or a body with E.
+
+**B. Moving fast**
+1. Outdoors, sprint in one direction for at least 200 blocks (a road is
+   easiest), then sprint-jump the same stretch. Expected: no short freeze
+   every 60 blocks or so.
+2. If you know a spot where it kept freezing, walk back and forth there.
+   Expected: no freeze.
+3. Optional, in creative: fly fast. Expected: fewer and shorter freezes than
+   before; some may remain.
+
+**C. Blocked, slow, cannot jump**
+1. Fight one or more enemies up close, also on a slope or stairs, and jump
+   while they are on you. Expected: you are never slowed to a crawl and you
+   can always jump.
+2. Walk across the bodies afterwards. Expected: nothing invisible in the way.
+3. If you do get blocked or slowed: note roughly what was next to you (an
+   enemy, a body, a doorway, a low ceiling) and tell me. That is the one thing
+   the log cannot tell me by itself.
+
+**D. Standing still**
+1. Stand still for half a minute, then walk on. Expected: nothing unusual.
+2. Stand right in front of a closed door that opens without a loading screen,
+   open it with E, wait a second, walk through. Expected: you get through. If
+   the open doorway still blocks you after a second, that is this step.
+
+**E. More Skyrim menus**
+1. Press I. Expected: Skyrim's items. Tab leaves.
+2. Press P. Expected: Skyrim's magic. Tab leaves.
+3. Press G. Expected: Skyrim's favourites, if you have any favourites set in
+   Skyrim; with none, Skyrim shows nothing.
+
+**F. Bow**
+1. With arrows, draw fully (hold right mouse about a second) with the
+   crosshair on an enemy 10 to 30 blocks away, and let go. Expected: the enemy
+   is hurt and reacts; one arrow is used.
+2. Shoot again with a short draw. Expected: less damage.
+3. Stand so that a wall or a rock is between you and the enemy, and shoot at
+   where it is. Expected: nothing happens to it.
+4. Shoot at empty sky. Expected: nothing, apart from the arrow being used.
+
+**G. Shout or power (experimental)**
+In Skyrim's magic menu (P), equip a shout or a power. Back in play, press Z.
+Expected: Skyrim uses it. If nothing happens, that is the likely outcome I
+warned about; say so.
+
+**Still open from Test 0.10.36** (skip any you do not want to do now)
+
+**H. W, A, S, D in Skyrim menus.** In a long list press S and W; hold S.
+Expected: the selection moves, and keeps scrolling while held.
+
+**I. Continuous damage.** Flames or frost from a mage, a trap, poison.
+Expected: hearts go down in steps about twice a second.
+
+**J. Skyrim healing.** With hearts missing, drink a health potion from
+Skyrim's items. Expected: hearts come back at once.
+
+**K. Pointer speed setting.** Minecraft Options > Controls > Mouse Settings,
+Sensitivity 200%. Expected: the Skyrim pointer is twice as fast.
+
+**L. Height and depth.** The sea shore or High Hrothgar; walk into deep
+water. Expected: you arrive and move; no "fell out of the world".
+
+**M. How does it run?**
+Nothing to do. Say whether either game feels smoother, the same, or worse.
+
+Where a failure would not surprise me: G (nothing has shown that Skyrim's
+player controls take a forwarded key), E3 (favourites uses a Skyrim handler
+not seen working yet), and C in the sense that I fixed the causes I could find
+in the code without having seen the problem happen.
+
+## 2026-10-11 0.10.36 tested by the user and checked against the logs
+
+User: "Pass: A,B,C,D,E,F,G seems to work, look at logs,I,K,L,M fps is
+definitely higher(was 50 now 60). Did not test: H". Report
+scene-report-20261011-155446 (protocol 31 on both sides, no error line, no
+switches used):
+
+- **Works, and the logs agree:** start-up (A); quicksave, quickload, E opening
+  things, real clicks (B); E on characters, doors and objects, with enemies
+  recognised 31 times (C); Tab, M and J opening Skyrim's menus (D); pointer
+  measured against the monitor (F1, F2); Sharpness and Strength, exact to the
+  digit (G); pause protection, 5 hits cancelled (I); fast travel by clicking
+  the map (K1); death and reload (L); Skyrim at 59 frames a second and raw
+  logs about 96% smaller (M).
+- **Not tested yet** (the user confirmed this afterwards): W, A, S, D and held
+  directions in Skyrim menus (E1, E2), continuous damage (H), Skyrim healing
+  (J). The user will test these later.
+- **Not exercised in this session:** the sensitivity setting (F3), height and
+  depth (K2, K3), the wait key (D4).
+
+No rebuild or reinstall needed. Nothing is committed: the user decided not to
+commit until the rest is tested.
+
+# Versions 0.10.19 to 0.10.36: two batches, one test list
+
+Built successfully; gameplay **not tested**: nothing since 0.10.18 has been
+played. Before the build ran: 39 Rust tests, 90 checks of the Minecraft side's
+own arithmetic, and 124 checks that every hook into Minecraft matches
+Minecraft's own code. Made by Claude Code. Install 0.10.36; it contains
+everything below. All three files must be updated together (protocol 31).
+
+This list replaces "Test 0.10.27" further down; the first batch's tests are
+included here.
+
+## What is new since 0.10.18
+
+First batch (0.10.19 to 0.10.27):
+- **E follows Skyrim first.** E talks, opens doors, containers and bodies,
+  picks plants and items. The Minecraft inventory opens only when the
+  crosshair is on nothing or on an enemy. R is unchanged.
+- **Keys for Skyrim's menus.** Tab: character menu. M: map. J: journal. Tab
+  inside a Skyrim menu goes back. "Skyrim: wait" has no key until you bind one.
+- **Fire, frost and poison now hurt:** small hits are added up and delivered
+  about twice a second.
+- **A paused Minecraft protects you** from Skyrim hits.
+- **Sharpness, Strength and Weakness** count against Skyrim enemies.
+- **Pointer speed no longer depends on the Minecraft window size.**
+- **You can arrive at any height.**
+- **Far less log writing** (it was about 7,000 lines a second in each game).
+
+Second batch (0.10.28 to 0.10.36):
+- **Switches.** Any of the risky steps can be turned off with one line in a
+  text file, without a rebuild. See "If something goes wrong" below.
+- **Skyrim healing heals you.** Potions and food from Skyrim's inventory, and
+  anything else in Skyrim that restores health, now restore your Minecraft
+  hearts. Skyrim's slow natural recovery is deliberately left out.
+- **W, A, S, D move through Skyrim menus,** and a held direction (those or the
+  arrow keys) keeps scrolling.
+- **Pointer speed follows Minecraft's Mouse Sensitivity setting.** 100% is the
+  speed from the first batch; raise it to go faster.
+- **No "fell out of the world".** In the bridge world you can be at any depth
+  (deep water, deep caves) without Minecraft hurting you for it.
+- **The bridge measures its own cost** per frame in both games, so the next
+  report says with numbers whether it slows them.
+- **Three kinds of automatic check now run before every build,** including one
+  that would have caught a hook that stops Minecraft from starting.
+
+## If something goes wrong: switches
+
+Create a text file called `switches.txt` in the project folder (next to
+README.md), put one line in it per step you want off, and restart both games.
+Delete the line (or the file) to turn it back on.
+
+| Line | What it turns off | Use it when |
+| --- | --- | --- |
+| `hostility=off` | Asking Skyrim whether a character is an enemy | Skyrim crashes or freezes when you look at a character |
+| `e_precedence=off` | E on characters, doors and objects (E goes back to containers and bodies only) | E gets in the way |
+| `menu_keys=off` | Tab, M, J and wait | Those keys do something bad |
+| `menu_wasd=off` | W, A, S, D and held directions in Skyrim menus | Menus scroll by themselves |
+| `damage_pool=off` | Adding small hits together | Damage feels wrong or stops |
+| `pause_shield=off` | Protection while Minecraft is paused | You stay unhurt when you should not |
+| `healing=off` | Skyrim healing reaching Minecraft | Hearts fill up by themselves |
+| `pointer_monitor=off` | The new pointer speed (back to the 0.10.18 speed) | The pointer is unusable |
+| `void_guard=off` | The exemption from falling out of the world | Anything odd far below ground |
+
+Tell me which lines you used; the logs also record them.
+
+## Test 0.10.36
+
+Close both games and run `.\tools\install-build.ps1`. Expect three INSTALLED
+lines with Fabric 0.10.36. Start both games as usual.
+
+Say which letters passed or failed. You do not need to collect logs; I will
+read them myself. If a letter fails, carry on with the others. A, B and C are
+the ones that matter most; D to M can be done in any order.
+
+**A. Start-up**
+Both games start, you get control in Minecraft, you can walk, and you can
+place and break a block. If Minecraft stops while loading, or the two games do
+not connect, stop there and tell me what you see.
+
+**B. What already worked**
+1. Hit an enemy with a sword. Expected: it takes damage as before.
+2. Press F5. Expected: Skyrim's "Quicksaving..." message.
+3. Look at a chest, press R, then R again inside it. Expected: opens, then
+   takes all. Right click closes.
+4. Look at another chest or a body, press E, then left click one item.
+   Expected: it opens, and that one item is taken.
+
+**C. E key** (off: `e_precedence=off`; enemy part: `hostility=off`)
+1. Look at a friendly character until Skyrim shows "Talk", press E. Expected:
+   the conversation opens; the Minecraft inventory does not. Backspace leaves.
+2. Look at a door, press E. Expected: it opens or takes you through.
+3. Look at a plant or an item on a table, press E. Expected: Skyrim picks it.
+4. Look at the sky or open ground, press E. Expected: the Minecraft inventory.
+5. In a fight, crosshair on the enemy, press E. Expected: the Minecraft
+   inventory.
+
+**D. Skyrim's menus from Minecraft** (off: `menu_keys=off`)
+1. Press Tab. Expected: Skyrim's four-way character menu. Tab again: back.
+2. Press J. Expected: Skyrim's journal. Tab leaves.
+3. Press M. Expected: Skyrim's map. Keep it open for test K.
+4. Optional: bind "Skyrim: wait" in Minecraft's Controls and press it.
+
+**E. W, A, S, D and holding** (off: `menu_wasd=off`)
+1. Tab, choose Items, open a long list. Press S and W. Expected: the
+   selection moves down and up, like the arrow keys.
+2. Hold S. Expected: after a short pause the list keeps scrolling; it stops
+   when you let go.
+3. Leave the menus. Walk up to a character holding W and press E while still
+   holding it. Expected: the conversation opens and does not scroll by itself.
+
+**F. Pointer** (off: `pointer_monitor=off`)
+1. In any Skyrim menu move the mouse. Expected: the pointer moves about like
+   your desktop pointer, slower than before.
+2. Resize the Minecraft window and try again. Expected: the same speed.
+3. In Minecraft: Options > Controls > Mouse Settings, set Sensitivity to 200%.
+   Expected: the Skyrim pointer is twice as fast (and so is the camera). Put
+   the setting where you like it and tell me the value you ended on.
+
+**G. Sharpness and Strength**
+Hold a sword. Type `/enchant @s minecraft:sharpness 5`, hit an enemy a few
+times. Type `/effect give @s minecraft:strength 60 1`, hit again. Expected:
+enemies go down clearly faster each time.
+
+**H. Continuous damage** (off: `damage_pool=off`)
+Let something that deals steady damage hit you: flames or frost from a mage, a
+fire or spike trap, poison. Expected: your hearts go down in steps about twice
+a second. Before, they barely moved. Sword and arrow hits should feel as they
+did.
+
+**I. Pause protection** (off: `pause_shield=off`)
+With an enemy attacking you, press Esc in Minecraft and wait ten seconds.
+Expected: Skyrim's health bar does not go down. Esc again: the fight carries
+on and you take damage normally.
+
+**J. Skyrim healing** (off: `healing=off`)
+1. Get hurt until a few hearts are missing. Press Tab, choose Items, then
+   Potions, and drink a health potion. Expected: hearts come back at once, in
+   proportion: a potion that restores a quarter of Skyrim's health restores a
+   quarter of your hearts. Food works the same way but restores very little.
+2. Stand still for half a minute with hearts missing. Expected: they do not
+   fill up by themselves any faster than Minecraft's own recovery from food.
+
+If you have no health potion, skip this letter and tell me; I have not checked
+a way to give you one.
+
+**K. Travel, height and depth** (depth: `void_guard=off`)
+1. On the map (M), left click a discovered place and confirm. Expected:
+   Skyrim travels there and after the loading screen you can move again.
+2. Go somewhere the bridge used to refuse: the sea shore (Solitude or
+   Dawnstar docks) or high in the mountains (High Hrothgar). Expected: you
+   arrive and can move. A chat line says when blocks cannot be placed there.
+3. At the shore, walk down into deep water as far as you can. Expected: you
+   keep walking on the sea floor (Skyrim's water is not simulated in
+   Minecraft) and are never killed by "fell out of the world".
+
+**L. Death** (only if you have time)
+Let yourself be killed. Expected, as in 0.10.8: Skyrim reloads your last save
+and you can play again.
+
+**M. Does it run better?**
+Nothing to do. Say whether either game feels smoother, the same, or worse than
+before. The logs now carry the numbers.
+
+**Afterwards, optional: free 27.8 GB of old logs.** With both games closed,
+`.\tools\prune-logs.ps1` lists what it would remove (it keeps the newest two
+raw logs of each game); `.\tools\prune-logs.ps1 -Delete` removes them.
+
+Where a failure would not surprise me, because the step rests on something in
+the games I could not see from here: D (Skyrim reacting to a forwarded
+menu key), C5 (Skyrim's answer to "is this an enemy"), I (a paused Minecraft
+still drawing frames), J (Skyrim reporting a potion drunk at full health).
+None of them affects the other letters.
+
+# Versions 0.10.19 to 0.10.27: a batch of eight steps
+
+Built successfully after 33 passing Rust tests; gameplay **not tested**: none
+of this has been played. Made by Claude Code after the user asked for new
+features and optimisations to be planned and worked through in one go. Install
+0.10.27; it contains all of them. Each step is its own version with its own
+MODLOG entry, so one can be taken out without the others. All three files must
+be updated together (protocol 30).
+
+What changed, in the order of the tests below:
+
+- **E follows Skyrim first (0.10.19).** E now does what Skyrim's E would do with
+  whatever Skyrim's crosshair is on: talk to a character, open a door, open a
+  container or body, pick a plant or an item, pull a lever. Your Minecraft
+  inventory opens only when Skyrim's E would do nothing: the crosshair is on
+  nothing, or on an enemy. R is unchanged.
+- **Keys for Skyrim's own menus (0.10.20).** Tab opens Skyrim's character menu
+  (skills, magic, items, map), M its map, J its journal. Inside any Skyrim menu
+  Tab goes back. A fourth key, "Skyrim: wait", has no key until you give it
+  one. All four are under Controls > Key Binds > Miscellaneous.
+- **Fire, frost and poison now hurt (0.10.21, corrected in 0.10.27).** Skyrim's
+  continuous damage arrives as dozens of tiny hits a second, and Minecraft
+  ignored nearly all of them (7 of 99 in the last measured session). They are
+  now added up and delivered about twice a second.
+- **A paused Minecraft protects you (0.10.22).** While Minecraft is paused or
+  not the active window, Skyrim's character can no longer be hurt. Before, it
+  was hurt directly behind Minecraft's back.
+- **Sharpness, Strength and Weakness count (0.10.23)** against Skyrim enemies,
+  with Minecraft's own numbers.
+- **Pointer speed is the same at every window size (0.10.24).** It will feel
+  slower than you are used to: about one Skyrim pixel per mouse unit, like a
+  desktop pointer. There is no speed setting yet.
+- **You can arrive at any height (0.10.25).** Doors, loads and fast travel to
+  the sea shore or the high mountains are no longer refused. Blocks still can
+  only be placed between Minecraft's own height limits; a chat line says so
+  when you arrive outside them.
+- **Much less log writing (0.10.26).** The bridge wrote one log line for every
+  collision box, about 7,000 a second in each game, 2.6 GB per session. It now
+  writes one summary line with a checksum instead. This should take load off
+  both games; whether you can feel it is for you to say.
+
+Things that behave differently on purpose: E on a friendly character talks
+instead of opening your inventory (look away first to open it). Two enemies
+hitting in the same half second now both count in full. A blow can land up to
+half a second late. While Minecraft is paused you cannot be hurt at all.
+
+## Test 0.10.27
+
+Before you start: close both games and run `.\tools\install-build.ps1`. Expect
+three INSTALLED lines with Fabric 0.10.27. Then start both games as usual and
+wait until you can move.
+
+You do not need to collect logs; say which letters passed or failed and I will
+read the logs myself. If one letter fails, carry on with the others.
+
+**A. E key**
+1. Look at a friendly character until Skyrim shows its "Talk" prompt, press E.
+   Expected: Skyrim's conversation opens; the Minecraft inventory does not.
+   Leave with Backspace.
+2. Look at a door, press E. Expected: it opens or takes you through.
+3. Look at a plant, or an item lying on a table, press E. Expected: Skyrim
+   picks it.
+4. Look at the sky or open ground, press E. Expected: the Minecraft inventory
+   opens. Close it.
+5. In a fight, with the crosshair on the enemy, press E. Expected: the
+   Minecraft inventory opens.
+6. R on a container, then R again inside it. Expected: opens, then takes all,
+   as before.
+
+**B. Skyrim's menus from Minecraft**
+1. Press Tab. Expected: Skyrim's four-way character menu. Pick "Items" with the
+   arrow keys or the mouse, look around, press Tab until you are back in play.
+2. Press M. Expected: Skyrim's map. Move the pointer onto a place you have
+   discovered and left click it, then confirm. Expected: Skyrim travels there,
+   and after the loading screen you can move again in Minecraft.
+3. Press J. Expected: Skyrim's journal. Leave with Tab.
+4. Optional: in Minecraft's Controls give "Skyrim: wait" a key and press it.
+   Expected: Skyrim's wait menu.
+
+**C. Continuous damage**
+Let something that deals steady damage hit you: a mage casting flames or
+frost, a fire or spike trap, a spider's poison. Expected: your Minecraft hearts
+go down steadily, a step about twice a second. Before this batch they barely
+moved. Ordinary sword and arrow hits should feel as they did.
+
+**D. Pause protection**
+With an enemy attacking you, press Esc in Minecraft and wait about ten seconds
+while it keeps swinging. Expected: Skyrim's health bar does not go down.
+Press Esc again. Expected: the fight carries on and you take damage normally.
+
+**E. Sharpness and Strength**
+Hold a sword and type `/enchant @s minecraft:sharpness 5`, then hit an enemy a
+few times. Then type `/effect give @s minecraft:strength 60 1` and hit again.
+Expected: enemies go down clearly faster each time. I will check the exact
+numbers in the log.
+
+**F. Pointer speed**
+Open any Skyrim menu and move the mouse. Expected: the pointer moves about like
+your desktop pointer, slower than before. Resize the Minecraft window and try
+again. Expected: the same speed. Tell me if it is too slow to use.
+
+**G. Height**
+Travel to somewhere the bridge used to refuse: the sea shore (for example the
+docks at Solitude or Dawnstar) or high in the mountains (High Hrothgar), by the
+map from B2 or on foot. Expected: you arrive and can move. If the place is
+outside Minecraft's building range a chat line says blocks cannot be placed
+there, and trying to place one shows Minecraft's own height message.
+
+**H. Everything that already worked**
+Place a block and break it, hit an enemy, press F5 for a quicksave, open a
+container with E and take one item with a left click. Expected: all as before.
+
+**I. Does it run better?**
+Nothing to do. Just say whether either game feels smoother, the same, or
+worse than before.
+
+**Afterwards, optional: free 27.8 GB of old logs.** With both games closed, run
+`.\tools\prune-logs.ps1`. It only lists what it would remove (129 old raw log
+files; it keeps the newest two of each game). To really remove them run
+`.\tools\prune-logs.ps1 -Delete`. Collected reports are not touched.
+
+Not tested by anything but reading: every step above. Two things in particular
+may simply not work, because they rely on Skyrim reacting to a forwarded key or
+question the way I expect: the menu keys in B, and telling an enemy from a
+friend in A5. If B fails, nothing else is affected. If A5 fails, E will try to
+talk to enemies; look away to open your inventory, and tell me.
+
 ## 2026-10-11 0.10.18 tested by the user and checked against the logs
 
 User: "All tests passed." Report scene-report-20261011-101205 (protocol 29 on

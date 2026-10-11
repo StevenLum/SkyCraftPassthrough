@@ -6,8 +6,10 @@ if ($properties -notmatch '(?m)^version=([0-9]+\.[0-9]+\.[0-9]+)\s*$') { throw '
 $version = $Matches[1]
 $manifest = Get-Content -Raw -LiteralPath (Join-Path $projectRoot 'passthrough\Cargo.toml')
 if ($manifest -notmatch '(?m)^version = "([0-9]+\.[0-9]+\.[0-9]+)"\s*$' -or $Matches[1] -ne $version) { throw 'Rust and Minecraft versions must match.' }
-# The Rust tests must pass before anything is built or packaged; a failure stops here.
+# The Rust tests and the Minecraft-side rule checks must pass before anything is built or
+# packaged; a failure stops here.
 & (Join-Path $PSScriptRoot 'cargo.ps1') test --offline
+& (Join-Path $PSScriptRoot 'test-java-rules.ps1')
 & (Join-Path $PSScriptRoot 'cargo.ps1') build --release --offline
 & (Join-Path $PSScriptRoot 'build-minecraft.ps1') -Offline:$Offline
 $package = Join-Path $projectRoot 'dist\step5b'

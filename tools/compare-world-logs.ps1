@@ -21,11 +21,16 @@ function Read-WorldRows([string]$path, [string]$direction) {
         if ($type -eq 'WORLD') { $counts[$snapshot].Header = $fields }
         else { $counts[$snapshot][$type]++ }
     }
+    # Since 0.10.26 a snapshot normally has no BOX rows: its WORLD row carries boxes_sum, a
+    # checksum of every box, and comparing the WORLD rows compares the boxes. BOX rows exist
+    # only when the games were started with PASSTHROUGH_LOG_BOXES=1.
     foreach ($entry in $counts.GetEnumerator()) {
         $value = $entry.Value
-        if ($null -eq $value.Header -or $value.BOX -ne [int]$value.Header.boxes -or $value.NPC -ne [int]$value.Header.npcs) {
+        $summed = $null -ne $value.Header -and $value.Header.ContainsKey('boxes_sum') -and $value.BOX -eq 0
+        if ($null -eq $value.Header -or (-not $summed -and $value.BOX -ne [int]$value.Header.boxes) -or $value.NPC -ne [int]$value.Header.npcs) {
             throw "Incomplete snapshot $($entry.Key) in $path; stop both games before comparing."
         }
+        $value.Summed = $summed
     }
     return @{ Rows=$rows; Counts=$counts }
 }
@@ -40,7 +45,9 @@ foreach ($entry in $received.Rows.GetEnumerator()) {
     if ($entry.Key -like '*/BOX/*') { $boxRows++ }
     if ($entry.Key -like '*/NPC/*') { $npcRows++ }
 }
-if ($boxRows -eq 0) { throw 'Snapshots matched but contain no geometry; collision export is not demonstrated.' }
-Write-Host "PASS: $($received.Counts.Count) complete received snapshots, $boxRows collision boxes and $npcRows NPC records match Skyrim exactly."
+$summedBoxes = 0
+foreach ($value in $received.Counts.Values) { if ($value.Summed) { $summedBoxes += [int]$value.Header.boxes } }
+if ($boxRows + $summedBoxes -eq 0) { throw 'Snapshots matched but contain no geometry; collision export is not demonstrated.' }
+Write-Host "PASS: $($received.Counts.Count) complete received snapshots match Skyrim exactly: $boxRows collision boxes compared row by row, $summedBoxes by checksum, and $npcRows NPC records."
 if ($npcRows -eq 0) { Write-Warning 'No NPC records were received. Repeat near a loaded NPC to check that direction.' }
 Write-Host 'Transport comparison only: check Minecraft latest.log for COLLISION_QUERY on both client and server, then use the manual movement procedure.'

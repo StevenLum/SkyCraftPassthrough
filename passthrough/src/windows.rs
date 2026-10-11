@@ -95,7 +95,7 @@ impl SharedMemory {
     }
 
     pub(crate) fn open_sized(session: &str, size: usize) -> io::Result<Self> {
-        let prefix = format!("Local\\PassthroughPractice_link29_{session}");
+        let prefix = format!("Local\\PassthroughPractice_link33_{session}");
         let mutex_name = wide(&format!("{prefix}_lock"));
         let map_name = wide(&format!("{prefix}_memory"));
         // Local namespace: same Windows login session, no administrator privileges.

@@ -33,3 +33,57 @@ impl Recovery {
         Reply::Waiting(p.token,p.target)
     }
 }
+
+/// Native feet can lie just inside Minecraft's sampled floor. Resolve only a
+/// bounded upward terrain overlap; walls/ceilings must not turn into a teleport.
+pub fn clear_feet(mut target:[f64;3],boxes:&[[f64;6]])->Option<[f64;3]> {
+    let start=target[1];
+    let overlaps=|y:f64,b:&[f64;6]| {
+        target[0]+0.3>b[0]+1e-6 && target[0]-0.3<b[3]-1e-6
+        && target[2]+0.3>b[2]+1e-6 && target[2]-0.3<b[5]-1e-6
+        && y+1.8>b[1]+1e-6 && y<b[4]-1e-6
+    };
+    let mut y=start;
+    for _ in 0..=boxes.len() {
+        let mut next=y;
+        for b in boxes {
+            if overlaps(y,b) {
+                // Only terrain beneath/near the feet may supply support.
+                if b[4]>start+0.5 {return None;}
+                next=next.max(b[4]+0.0001);
+            }
+        }
+        if next==y {target[1]=y;return Some(target);}
+        if next-start>0.5001 {return None;}
+        y=next;
+    }
+    None
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn a_low_chair_or_door_arrival_is_above_the_sampled_floor() {
+        let chair=[-3131406.2493033274,127.99730584919453,-4151278.0556762693];
+        let floor=[chair[0]-1.0,128.0,chair[2]-1.0,chair[0]+1.0,128.125,chair[2]+1.0];
+        let fixed=clear_feet(chair,&[floor]).unwrap();
+        assert!((fixed[1]-128.1251).abs()<1e-9);
+        assert_eq!([fixed[0],fixed[2]],[chair[0],chair[2]]);
+        let door=[322.6573091817958,40.01372506277902,-464.13952649426346];
+        let floor=[322.0,40.0,-465.0,323.0,40.145,-464.0];
+        assert!((clear_feet(door,&[floor]).unwrap()[1]-40.1451).abs()<1e-9);
+    }
+    #[test]
+    fn recovery_does_not_lift_through_a_wall_or_low_ceiling() {
+        let feet=[0.0,128.0,0.0];
+        let floor=[-1.0,127.9,-1.0,1.0,128.125,1.0];
+        let ceiling=[-1.0,129.85,-1.0,1.0,130.0,1.0];
+        assert!(clear_feet(feet,&[floor,ceiling]).is_none());
+        let wall=[-0.1,127.0,-1.0,0.1,131.0,1.0];
+        assert!(clear_feet(feet,&[wall]).is_none());
+        assert_eq!(clear_feet(feet,&[]),Some(feet));
+        let nearby=[1.0,127.9,-1.0,2.0,128.125,1.0];
+        assert_eq!(clear_feet(feet,&[nearby]),Some(feet));
+        assert!(clear_feet(feet,&[[-1.0,127.9,-1.0,1.0,128.501,1.0]]).is_none());
+    }
+}
