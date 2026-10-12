@@ -1,3 +1,234 @@
+# Handover note: 2026-10-12 (project moved to "Vibe coding\SkyCraft attempt"; committed, being pushed), Claude Code
+
+This first section is the handover note. Everything below it is history.
+
+## Right now
+- Step: the user asked "Commit and push to github as it is" after moving the
+  project. The project root is now
+  `D:\Documents\Vibe coding\SkyCraft attempt` (files moved up one level so
+  they sit beside `.git` again; details in the newest MODLOG entry). The old
+  path `D:\Documents\ChatGPT\Game modding` no longer exists.
+- State: committed on `dev`; push to GitHub in progress (see "Next").
+- Files being changed: none
+- Attempt: not applicable
+- Waiting on the user for: nothing
+
+## Versions
+- Source and packages: 0.10.59, protocol 33. Installed in the games: 0.10.59,
+  **built at the old path** (see "Known problems").
+- Commits: everything up to 0.10.59, the launcher and the records are in the
+  commit that carries this note, on `dev`.
+- Remote: `origin` = github.com/StevenLum/SkyCraftPassthrough. Until this
+  step GitHub had only `master` at a9fc0fd.
+- Checks: 89 Rust tests pass at the new location. Minecraft-side checks and
+  the build not run here yet.
+
+## What the user last said
+"Commit and push to github as it is"; on the folder layout and the branch:
+"You can restructure the local files better first then push in the best
+layout"; "It's under here now D:\Documents\Vibe coding".
+
+## Next
+1. Push `dev` to GitHub and move `master` forward to the same commit (a plain
+   fast-forward, nothing rewritten), so the repository's front page shows the
+   current work. The agent's choice, left to it by the user.
+2. Before the next play session: `.\tools\build-step5b.ps1 -Offline
+   -PackageOnly` here, then the user runs `.\tools\install-build.ps1`.
+3. Chair exit (.57) still needs the user's play result.
+
+## Known problems and findings not yet fixed
+- The installed mod writes its logs to, and reads `switches.txt` from, the
+  old project path, which is fixed at build time. Rebuild and install from
+  the new place; until then `collect-scene-logs.ps1` finds nothing new.
+- `.claude\worktrees\reverent-agnesi-e9925d` is a leftover work tree that
+  points at the old path. Not touched.
+- Claude Code's private memory folder belongs to the old path; nothing
+  needed from it is missing from these files.
+- Healing spells not tested. Earlier deferred tests remain the user's.
+
+## Given in chat this session and already written into AGENTS.md
+- Nothing new. (Commit and push were asked for this once; rule 3 is
+  unchanged.)
+
+# Handover note: 2026-10-12 (launcher for both games, written; real start not tested), Claude Code
+
+This first section is the handover note. Everything below it is history.
+
+## Right now
+- Step: one launcher for both games (user: "Can you make a single launcher
+  for this game?"). Plan: newest section of docs/DESIGN.md. A tool only; the
+  mod and its version (0.10.59, protocol 33) are not touched.
+- State: built, waiting for the user to try it. Nothing half-done.
+- Done: `tools/play.ps1`, `Play.cmd` in the project folder, one whitelist
+  line in `.gitignore`, MODLOG.md, README.md. Check mode
+  (`.\tools\play.ps1 -Check`) works; the real start was not run by the agent.
+- Files being changed: none
+- Attempt: not applicable
+- Waiting on the user for: a double-click on `Play.cmd`.
+
+## Versions
+- Source, packages and games: 0.10.59, protocol 33.
+- Last commit: 5ac01c9 on `dev`. Uncommitted: .57 chair, .58 and .59 healing,
+  their records, and this tool. **Do not commit and do not ask: the user said
+  "Dont bother with committing until I say" (2026-10-12).**
+
+## Next
+1. The user runs `Play.cmd`. The agent does not start the games.
+2. If it stops with "NOT STARTED:", the line says why; fix that case only.
+
+## Known problems and findings not yet fixed
+- Healing is done (note below). Chair exit (.57): no result from the user.
+- Healing spells not tested. Earlier deferred tests remain the user's.
+
+## Given in chat this session and already written into AGENTS.md
+- A lesson about test reports ("Things that have already cost time").
+
+# Handover note: 2026-10-12 (0.10.59 healing accepted by play; not committed), Claude Code
+
+This first section is the handover note. Everything below it is history.
+
+## Right now
+- Step: 0.10.59 healing. Played by the user; both potions heal.
+- State: accepted for healing. Nothing in progress, nothing half-done.
+- Files being changed: none
+- Attempt: done (the one attempt asked of Claude Code succeeded)
+- Waiting on the user for: a result for the chair exit (.57), which was not
+  tried in this session. Not for a commit decision: asked on 2026-10-12, the
+  user answered "Dont bother with committing until I say". Do not commit and
+  do not ask again.
+
+## Versions
+- Source, packages and games: 0.10.59, protocol 33.
+- Last commit: 5ac01c9 on `dev` (0.10.56). Uncommitted: .57 chair, .58 and
+  .59 healing, and their records. **Not committed: the user has not said that
+  all the testing passed** (AGENTS.md rule 3). Do not push.
+- Checks at the build: 89 Rust tests, 113 Minecraft-side rule checks, 136
+  hook checks.
+
+## What the user last said
+"the minor healing potion worked. The potion of health also healed 1 heart and
+I realise I was using the wrong potion once you pointed it out."
+
+## Evidence (report logs\scene-report-20261012-143915)
+- Potion of Health: SCENE_HEAL_FORTIFY raised 0 to 20, captured, Minecraft
+  11.665 to 15.665 (4 points; the user saw one heart).
+- Potion of Minor Healing: SCENE_HEAL_EFFECT_REQUEST 25 (Codex's .58 hook),
+  captured, Minecraft 15.665 to 19.832.
+- No error lines. Details in the newest MODLOG entry and ABI section.
+- Second session (logs\scene-report-20261012-144608), user: "the potion of
+  healing also heals 2 hearts. Eating multiple random food items also
+  eventually heal half a heart." Logs: 13 heals captured and applied; nine
+  food items gave 1.67 Minecraft points together. Healing is done.
+
+## Next
+1. Commit only when the user says so, on `dev`, no push. Do not ask.
+2. Chair exit (.57) still needs the user's play result; do not accept it from
+   logs. This session had no chair use.
+3. Small, in the Backlog: the raw effect log line should skip requests of 0.
+
+## Known problems and findings not yet fixed
+- Healing spells not tested.
+- The earlier deferred tests (continuous damage, sensitivity, height and
+  depth, letter C) remain the user's to run when they choose.
+
+## Given in chat this session and already written into AGENTS.md
+- 2026-10-12: one more healing attempt, for Claude Code (used, succeeded).
+
+# Handover note: 2026-10-12 (0.10.58 healing failed; STOPPED), Codex
+
+## Right now
+- Step: .58 healing extra attempt rejected by gameplay. Healing work STOPPED.
+- User: "Healing still doesnt work"; confirms potion consumed while Minecraft
+  hearts were missing. Potion name not supplied. No further repair authorized.
+- Records only updated this turn. No code/version/build/install/staging/commit.
+- Chair .57 included in .58; outcome not reported. Five returns measured, not
+  gameplay acceptance. Accepted .56 clicks/door/owned-bed/held-E/movement retained.
+
+## Setup / versions
+- Minecraft26.3/Fabric is authoritative for player position and health; Skyrim
+ 1.7.104/SKSE supplies native world/actions. Offline single-player only.
+- Source and both packages .58/protocol33; new .58 effect-hook event observed in
+ installed session, but collected logs don't print package semantic version.
+- Baseline87 Rust tests pass again; last build113 Java rules/136 hooks passed.
+ Synthetic tests did not establish real potion capture. Project remains building.
+- Last commit5ac01c9 on dev (.56 accepted). .57/.58 candidates remain uncommitted.
+
+## Current problem / evidence
+- Authorized collector/checker report: logs/scene-report-20261012-052857.
+ Raw: logs/step2/skyrim-10084-290782015.log and minecraft-33724-290823468.log.
+- New effect hook installed1 at time290832375, slot32/protection_restored=true;
+ owner6 installed1. Protocol33 connected, all switches on, zero ERROR/disabled.
+- Five item_use dispatches: favourites1 at290863921; inventory4 at290873015,
+ 290873984,290874781,290875765. All9 menu commands returned game_owned.
+- Zero effect REQUEST, owner REQUEST, healing CAPTURE/DROP or Minecraft APPLY.
+ Minecraft health11.665022 in all555 SCENE_HEALTH_CLIENT samples (05:26:04-05:27:47).
+- No qualifying restore reached the queue. REQUEST logs after effect filter and
+ native original return, before forwarding lease check: stale lease alone cannot
+ explain absent REQUEST. No claim that Minecraft's healing receiver is broken.
+
+## Tried / results
+- .30 positive clamp-delta capture: failed real potions.
+- .53 owner virtual6 requested restore plus paired menu lease: hook installed,
+ zero callbacks/captures; failed real potions.
+- .58 base ValueModifierEffect virtual32 requested restore plus duplicate guard:
+ hook installed, zero qualifying requests/captures; user confirms healing failed.
+
+## Unknown / ideas not tried
+- Cannot distinguish callback bypass from filter rejection: raw/excluded effect
+ calls aren't logged. Need actual consumed item/base IDs/class/amount/AV/flags to
+ locate the route, only if user explicitly authorizes another investigation.
+- Native current/max changed100-120 in session; do not attribute that to potion,
+ infer wrong potion, or claim cause. Food/spells/derived/custom effects NOT TESTED.
+- Files: damage.rs qualification/install/queue; skse.rs optional resolver;
+ menu_input.rs live paired lease; BridgeDamage.java receiver; ABI/ignored diagnostics.
+
+## Next / permission
+1. STOP healing changes; preserve source and failures. No reinstall/retest requested.
+2. Inspect recorded report using check-test-report.ps1 -Report on folder above.
+ Expected effect hook installed1, requests/capture/apply0, item_use5, errors0.
+3. Any future healing investigation needs user authorization under AGENTS.md:
+ "if this extra attempt fails, stop and write the failure handover again."
+ Chair result still pending; don't accept from logs or retry without a report.
+
+# Handover note: 2026-10-11 (0.10.57 chair return built), Codex
+
+## Right now
+- Step: chair exit returns to pre-seat Minecraft feet, candidate 0.10.57.
+- State: built, gameplay NOT TESTED. One extra attempt authorized, not unlimited.
+- Files: seat.rs, recovery.rs, skse.rs, world_export.rs, Rust/Java switches,
+  versions/Cargo.lock, checker and records. Nothing half-done. No healing edits.
+- Waiting on user: chair tests after the separate healing step is packaged.
+
+## Versions and checks
+- Source and both packages: 0.10.57, protocol33. Installed version last reported .56.
+- Offline package-only build:81 Rust tests (75 unit,6 integration),113 Minecraft
+  rules,136 hook checks pass. Both ZIP DLL hashes match release, Fabric manifest .57.
+- Accepted .56 committed5ac01c9 on dev. Chair candidate uncommitted. No install/push.
+
+## Evidence / result
+- Latest report225755: native stand then2.4s blocked recovery while native physics
+  continued. .50 native exit/.51 upward correction failed previously.
+- New chair entry point scoped to pair/save revision/native cell. Once standing,
+  verified actor/controller hold at entry, fresh supported terrain/NPC clearance,
+  bounded<=1.5 fallback, original mapping and existing recovery acknowledgement.
+- No movement writes seated; native bed/workbench path unchanged. Fresh NPC check,
+  geometry expiry500ms and suspension invalidation. chair_return=off restores .56.
+- Fixtures cover original low/obstructed exit, unsupported/walled/ceiling cases,
+  NPC fallback, ignored position setter, standing-only hold and gravity restoration.
+
+## Next
+1. Healing diagnosis found ordinary potion effects bypass owner virtual slot6:
+  ValueModifierEffect slot32 calls Actor::ModActorValue directly. Plan .58 before code.
+2. Build healing separately; final package will include both candidates. User alone
+  installs/tests low chair/table and stool/NPC, then I/G healing with hearts missing.
+3. Collect/check logs after report. If an extra attempt fails, stop with handover.
+
+## Retained state / permission
+- User: "All working. Try to fix the two issues once more ... Chair and healing".
+- AGENTS records one additional attempt each, for both agents. Prior failures kept.
+- Accepted click/door/owned-bed/held-E/movement/combat checks kept. Native hand
+  outcome, workbench, food/spells and earlier deferred checks remain NOT TESTED.
+
 # Handover note: 2026-10-11 (0.10.56 accepted; chair/healing reopened), Codex
 
 ## Right now

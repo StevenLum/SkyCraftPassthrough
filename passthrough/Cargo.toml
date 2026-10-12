@@ -1,6 +1,6 @@
 [package]
 name = "passthrough-link"
-version = "0.10.56"
+version = "0.10.59"
 edition = "2024"
 publish = false
 

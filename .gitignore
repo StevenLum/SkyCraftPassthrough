@@ -5,6 +5,7 @@
 !/README.md
 !/MODLOG.md
 !/STATUS.md
+!/Play.cmd
 !/templates/
 !/templates/*.md
 !/rust-toolchain.toml

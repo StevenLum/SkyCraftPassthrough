@@ -358,7 +358,7 @@ impl Exporter {
     }
     /// Lists the living characters near the player as stand-ins. A dead one is left out and
     /// counted: a body on the ground must not be an invisible pillar.
-    unsafe fn npcs(&self,api:&Api,player:Object,cell:Object,anchor:Anchor,sample:Sample,s:&mut Snapshot)->io::Result<usize> {
+    pub(crate) unsafe fn npcs(&self,api:&Api,player:Object,cell:Object,anchor:Anchor,sample:Sample,s:&mut Snapshot)->io::Result<usize> {
         let lists=unsafe { *(api.processes as *const Object) };
         if lists.is_null() { return Ok(0); }
         let mut bodies=0;

@@ -3,9 +3,9 @@
 use std::sync::OnceLock;
 use crate::{native::write_log,Role};
 /// Every switch, in the bit order Minecraft receives. A new one goes at the end.
-pub const NAMES:[&str;22]=["e_precedence","hostility","menu_keys","damage_pool","pause_shield",
+pub const NAMES:[&str;25]=["e_precedence","hostility","menu_keys","damage_pool","pause_shield",
     "pointer_monitor","healing","menu_wasd","void_guard","server_trust","pose_free","slow_scan",
-    "ranged","shout","seat_guard","stand_up","fast_scan","sitting","safe_arrival","furniture_ground","native_hands","item_click"];
+    "ranged","shout","seat_guard","stand_up","fast_scan","sitting","safe_arrival","furniture_ground","native_hands","item_click","chair_return","effect_healing","fortify_healing"];
 pub const HOSTILITY:usize=1;
 pub const PAUSE_SHIELD:usize=4;
 pub const HEALING:usize=6;
@@ -20,6 +20,9 @@ pub const SAFE_ARRIVAL:usize=18;
 pub const FURNITURE_GROUND:usize=19;
 pub const NATIVE_HANDS:usize=20;
 pub const ITEM_CLICK:usize=21;
+pub const CHAIR_RETURN:usize=22;
+pub const EFFECT_HEALING:usize=23;
+pub const FORTIFY_HEALING:usize=24;
 /// The set of switched-off steps as bits, and the lines that were not understood.
 /// `#` starts a comment; names and values ignore case and surrounding spaces.
 fn parse(text:&str)->(u64,Vec<String>) {
@@ -80,10 +83,13 @@ mod tests {
         assert_eq!((NAMES[SEAT_GUARD],NAMES[STAND_UP]),("seat_guard","stand_up"));
         assert_eq!(parse("stand_up=off").0,1<<STAND_UP);
         assert_eq!((NAMES[ITEM_CLICK],parse("item_click=off").0),("item_click",1<<ITEM_CLICK));
+        assert_eq!((NAMES[CHAIR_RETURN],parse("chair_return=off").0),("chair_return",1<<CHAIR_RETURN));
+        assert_eq!((NAMES[EFFECT_HEALING],parse("effect_healing=off").0),("effect_healing",1<<EFFECT_HEALING));
+        assert_eq!((NAMES[FORTIFY_HEALING],parse("fortify_healing=off").0),("fortify_healing",1<<FORTIFY_HEALING));
         // The first nine are fixed since 0.10.28; later ones are only ever added at the end.
         assert_eq!(NAMES[..9],["e_precedence","hostility","menu_keys","damage_pool","pause_shield",
             "pointer_monitor","healing","menu_wasd","void_guard"]);
         assert_eq!(NAMES[9..14],["server_trust","pose_free","slow_scan","ranged","shout"]);
-        assert_eq!(NAMES[14..],["seat_guard","stand_up","fast_scan","sitting","safe_arrival","furniture_ground","native_hands","item_click"]);
+        assert_eq!(NAMES[14..],["seat_guard","stand_up","fast_scan","sitting","safe_arrival","furniture_ground","native_hands","item_click","chair_return","effect_healing","fortify_healing"]);
     }
 }

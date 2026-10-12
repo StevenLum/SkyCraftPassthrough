@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "passthrough_practice",
-  "version": "0.10.56",
+  "version": "0.10.59",
   "name": "Passthrough Practice",
   "description": "Minecraft movement, camera, hands/HUD and nearby block meshes in Skyrim; receives Skyrim collision and NPCs.",
   "environment": "client",

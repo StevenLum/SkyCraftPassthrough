@@ -1,3 +1,291 @@
+## 2026-10-12 project folder moved and flattened; committed for GitHub
+
+**Changed:** No source change. The user moved the project from
+`D:\Documents\ChatGPT\Game modding` to `D:\Documents\Vibe coding\SkyCraft
+attempt`. After the move Git's own folder (and `.claude`) sat in that folder
+while every project file sat one level deeper, in a second `SkyCraft attempt`
+folder, so Git saw every tracked file as removed. Asked how to publish, the
+user said: "You can restructure the local files better first then push in the
+best layout". The inner folder's contents were moved up beside `.git` (a
+rename on the same drive) and the empty inner folder removed. The project
+root is now `D:\Documents\Vibe coding\SkyCraft attempt`, laid out as it always
+was on GitHub. Then everything uncommitted was committed on `dev`: 0.10.57
+chair return and 0.10.58 effect healing (Codex), 0.10.59 fortify healing, the
+launcher (`Play.cmd`, `tools\play.ps1`), all records, and
+`docs\NATIVE_SKYRIM_MOD_PLAN.md` (a proposal written in another session; read
+before committing, prose only). Done by Claude Code.
+
+**Why:** User: "Commit and push to github as it is".
+
+**Tested how:** After the move `git status --short` lists exactly the files
+changed since 5ac01c9 and three new ones, nothing removed.
+`.\tools\cargo.ps1 test --offline` at the new place.
+
+**Result:** 89 Rust tests pass at the new location (the first run rebuilt the
+libraries, 17 s). No build, no install.
+
+**Still broken / not tested:** The mod installed in the games (0.10.59) was
+built at the old place, and the place of its log folder and of `switches.txt`
+is fixed when it is built (`CARGO_MANIFEST_DIR` in `native.rs` and
+`switches.rs`). Until it is built and installed again from here, the games
+write their logs under the old path, the collector finds no new logs, and
+`switches.txt` in this folder is not read. The Minecraft-side checks and the
+full build have not been run at the new place. `.claude\worktrees` still
+holds a leftover work tree that points at the old path; untouched. Chair exit
+(.57): still no result from play. The plan document's remark about the nested
+folder is now out of date.
+
+**Next:** Push. Then build and install from the new place before the next
+play session.
+
+## 2026-10-12 one launcher for both games (tool; mod stays 0.10.59)
+
+**Changed:** New `tools\play.ps1` and `Play.cmd` in the project folder (a
+double-click wrapper that only calls the script); one whitelist line for
+`Play.cmd` in `.gitignore`. The script checks, then starts Skyrim with
+`skse64_loader.exe` and Minecraft with Prism Launcher's `--launch 26.3`. It
+writes nothing in either game. No change to the mod, its version or the
+packets. Done by Claude Code.
+
+**Why:** User: "Can you make a single launcher for this game?" Until now the
+two games were started by hand, each with its own launcher.
+
+**Tested how:** `.\tools\play.ps1 -Check` and `.\Play.cmd -Check` (check mode
+prints what would be started and starts nothing), and once with a wrong Prism
+path. Prism's `--launch` option read from its own `--help` (version 8.4).
+
+**Result:** Check mode: "Passthrough mod 0.10.59 is installed in both games",
+the two start commands, exit code 0. Wrong path: "NOT STARTED: Prism Launcher
+was not found", exit code 1.
+
+**Still broken / not tested:** The real start is **not tested**: the agent did
+not start the games. Not seen: the stops for "Steam is not running", for
+different mod files in the two games and for a game already running. The save
+in Skyrim and the world in Minecraft are still chosen by hand. The paths of
+the two games are written in the script, as in `install-build.ps1`.
+
+**Next:** The user double-clicks `Play.cmd`.
+
+## 2026-10-12 Test 0.10.59, second session: two hearts confirmed, food heals too
+
+**Changed:** Records only. No code, no build. Done by Claude Code.
+
+**Why:** The user: "You're right that the potion of healing also heals 2
+hearts. Eating multiple random food items also eventually heal half a heart."
+
+**Tested how:** `.\tools\collect-scene-logs.ps1`, then the healing lines of
+`logs\scene-report-20261012-144608`.
+
+**Result:** 13 heals handed over by Skyrim and 13 applied in Minecraft, in the
+same order; no error lines.
+- Potion of Health: 20, Minecraft 0.83 to 4.83 (4 points, two hearts).
+- Potion of Minor Healing, three times: 25 each, 4.17 points each.
+- Food, nine items of five kinds (items 0x00064B40, 0x00064B42, 0x05000EFE,
+  0x03003540, 0x03003538; all through base effect 0x000F33CB): 1 or 2 points
+  of Skyrim health each, 0.17 or 0.33 of a Minecraft point each, 1.67 points
+  together. That is the "half a heart, eventually" the user saw, and it is
+  the right size: Skyrim's food restores very little.
+
+**Still broken / not tested:** Healing spells not tested. Chair exit (.57) not
+tried. Not committed, by the user's word: "Dont bother with committing until I
+say".
+
+**Next:** Nothing owed on healing.
+
+## 2026-10-12 Test 0.10.59: both kinds of health potion heal in Minecraft
+
+**Changed:** Records only (this entry, README, STATUS, ABI, Backlog). No code,
+no build. Done by Claude Code.
+
+**Why:** The user played 0.10.59: "the minor healing potion worked. The potion
+of health also healed 1 heart and I realise I was using the wrong potion once
+you pointed it out."
+
+**Tested how:** `.\tools\collect-scene-logs.ps1`,
+`.\tools\check-test-report.ps1`, then the healing lines of
+`logs\scene-report-20261012-143915` read in order.
+
+**Result:** Protocol 33 on both sides, no switches file, no error lines.
+- Potion of Health (favourites click at 323836015): `SCENE_HEAL_FORTIFY
+  state=raised bonus=20 was=0`, `SCENE_HEAL_CAPTURE skyrim_heal=20
+  fraction=0.2 source=fortify`, and in Minecraft `SCENE_HEAL_APPLY
+  requested=4.0 before=11.665022 after=15.665022`. That is two hearts by the
+  numbers; the user saw one. Three more clicks on it while it was running
+  changed nothing, as expected.
+- Potion of Minor Healing (inventory click at 323912468):
+  `SCENE_HEAL_EFFECT_REQUEST requested=25 base_id=0x0003EB15
+  item_id=0x0003EADD`, captured, applied `requested=4.1666665
+  before=15.665022 after=19.831688`. This is Codex's .58 hook, seen working
+  for the first time: it was right all along and had only never met a
+  restore-health potion.
+- The first value of the session (a potion still running from the save) was
+  only remembered, not healed: `state=first_seen bonus=20`.
+- Minecraft's receiver applied a heal in play for the first time.
+- Two facts for the record: the bonus sits in Skyrim's "permanent" value
+  (`lasting=120 passing=0`), not in the temporary one, so reading the plain
+  value (slot 3, `plain=100`) was what made this work; slot 3 is confirmed.
+
+**Still broken / not tested:** The raw effect line used up its 200 lines in
+3.5 seconds on one standing effect that asks for 0 health every frame
+(base 0x000E5F4B), so it recorded neither potion; it should skip requests of
+0. The two routes divide by different numbers (plain 100 for fortify, maximum
+120 for restore); harmless. Food and healing spells not tested. Chair exit
+(.57): not exercised in this session, no result reported. Not committed: the
+user has not said that all the testing passed.
+
+**Next:** Ask the user whether to commit. Chair result still owed by play.
+
+## 2026-10-12 a potion that raises maximum health now heals in Minecraft (candidate 0.10.59)
+
+**Changed:** `passthrough/src/damage.rs`: every frame the bridge reads how much
+health Skyrim's character has on top of its plain amount (maximum minus
+ActorValueOwner slot 3, the plain value) and remembers it per damage
+generation. A rise of half a point or more is queued as an ordinary heal for
+Minecraft, as a share of the plain health; the first value of a generation is
+only remembered. `SCENE_HEAL_FORTIFY` logs every change. New line
+`SCENE_HEAL_EFFECT_RAW`: every call of the potion-effect function on the
+steered character before any filter, 200 a session at most. New switch
+`fortify_healing`, number 24, in `switches.rs` and `Switches.java`.
+`tools\check-test-report.ps1` shows the new lines. Versions 0.10.59 and
+Cargo.lock. No packet change, protocol 33. Done by Claude Code.
+
+**Why:** "Health potions do not work. Codex tried and failed 3 times, give it
+a try." The logs of the failed test (report 20261012-052857) show which potion
+it was: Skyrim's maximum health went from 100 to 120 after each drink and back
+by exactly 20 sixty seconds later (SCENE_DAMAGE_PROBE supplied=-20 at
+290842593 and 290936937; SCENE_DAMAGE_READY skyrim_max 100 and 120). That is
+"Potion of Health", a fortify effect: it raises the maximum and the current
+health together and never makes a "restore" call. .30, .53 and .58 all waited
+for a restore, and .58 leaves fortify effects out on purpose.
+
+**Tested how:** `.\tools\build-step5b.ps1 -Offline -PackageOnly`. New Rust
+tests with the report's numbers: first look only remembers; 0 to 20 gives 20;
+running out, no change, noise and non-numbers give nothing; 20 on a plain 100
+is a fifth; the raw line reads no further than its pointers allow.
+
+**Result:** 89 Rust tests (83 unit, 5 connection, 1 position), 113 rule checks
+and 136 hook checks pass. Packages 0.10.59 built.
+
+**Still broken / not tested:** Not played. Slot 3 of Skyrim's value table as
+"the plain value" is from CommonLib and has not been seen in this version; if
+it returns nonsense the code falls back to the temporary bonus alone, and the
+log line carries all the numbers. Minecraft's side of healing has never been
+seen applying a heal in play. Nothing is taken away when the potion's minute
+ends. Drinking the same potion again while it is still running gives nothing,
+in Skyrim too. Putting on enchanted armour that adds health heals once as
+well. Restore-health potions ("Minor Healing" and the like): still unproven;
+the raw line will show at the next test whether Codex's .58 hook is reached.
+Chair exit (.57): no result reported.
+
+**Next:** User installs 0.10.59 and runs the test at the top of README.md.
+
+## 2026-10-12 healing still failed on 0.10.58; extra attempt stopped
+
+**Changed:** Failure records only: STATUS first handover, README, DESIGN result/
+Backlog, ABI observation. Healing source and packaged .58 preserved. No new repair.
+
+**Why:** User reports "Healing still doesnt work", then confirms the potion was
+consumed while Minecraft hearts were missing. This rejects the one extra healing
+attempt authorized after .30/.53 failures. AGENTS requires stopping and handover.
+
+**Tested how:** Authorized collect-scene-logs.ps1 then check-test-report.ps1 on
+report20261012-052857; read exact menu/hook/health events and filter/lease order.
+Read-only cross-check agrees. Baseline87 Rust tests pass; no new build or game action.
+
+**Result:** Effect hook installed1/owner hook1; protocol33 connected, all switches
+on, zero ERROR/disabled. Five item-use dispatches (favourites1/inventory4), all9
+menu commands game_owned. Effect request0, owner request0, heal capture/drop/apply0.
+Minecraft health11.665022 in all555 samples. Potion consumption comes from user;
+item identity/count not logged. No qualifying restoration entered bridge queue.
+
+**Still broken / not tested:** Healing FAILED, not accepted. Exact cause unknown:
+request is logged only after effect metadata filter/native return. Zero requests
+cannot distinguish callback bypass from filter rejection. Lease rejection alone
+would still leave a qualifying request log. Native health/max100-120 variation
+cannot identify the potion/cause. No proof that Minecraft receiver failed.
+Chair gameplay outcome not reported; five held/clear/accepted returns measured,
+not a user pass. Other accepted/deferred outcomes retained.
+
+**Next:** Healing STOPPED per explicit extra-attempt limit. No further fix,
+rebuild/install/retest, staging/commit/push this turn. Failure handover first in
+STATUS.md includes tried approaches and missing evidence; future investigation
+requires user authorization. Report inspection command at README top.
+
+## 2026-10-12 ordinary potion effect capture (candidate 0.10.58)
+
+**Changed:** damage.rs optionally hooks ValueModifierEffect slot32, copies effect
+metadata before calling the original once, then forwards positive health requests
+through the existing player/menu lease and queue. Thread-local ownership guard
+prevents nested owner6 double capture. skse.rs resolves AE206143 optionally;
+effect_healing switch23 appended on both sides. Versions/Cargo.lock, checker,
+README/ABI/Backlog and handover updated. Separate .57 chair candidate included.
+
+**Why:** .30/.53 healing failed. Installed runtime ordinary potion effect calls
+Actor::ModActorValue AE38468 directly, bypassing owner virtual6. OnStart/Update
+use effect virtual32. Vanilla restore-health base3EB15 has health24/kRecover clear;
+no full-health gate found in this path. Capture requested amount even when native
+health stays full; don't modify native health. User authorized one extra attempt.
+
+**Tested how:** Pinned native class headers and installed runtime read-only
+instructions/vanilla records, retained in ignored .tools/logs. Six new regressions:
+direct bypass at full native health plus metadata lifetime, unchanged native ABI
+and one call in off/invalid cases, nested owner suppression/rollback, filters,
+RAII guard unwind/nesting and stale player/menu/revision lease. Existing menu pair,
+normal-regeneration filter and Minecraft health-event checks remain. Final chair
+review found real prior acknowledgements15-141ms, below its500ms validity window.
+
+**Result:** Offline package-only build passed87 Rust tests (81 unit,6 integration),
+113 Java rules and136 hook checks. Both ZIP DLL hashes equal release and package
+folders; Fabric manifest/four versions/Cargo.lock .58, protocol33,24 switch indices
+agree. No test/build failures in .58. Optional hook protection failure logs once
+and keeps ordinary movement available. No installation/staging/commit/push.
+Accepted .56 work already committed5ac01c9 on dev under standing instruction.
+
+**Still broken / not tested:** Actual chair exits and potion-to-Minecraft healing
+NOT TESTED. Base ValueModifierEffect only; Peak/Accumulating/Dual/custom effects,
+food/healing spells and native-hand outcome not established. Minecraft's existing
+receiver still must be verified by play; synthetic native callback isn't acceptance.
+One extra attempt each, not unlimited. Earlier failures are preserved.
+
+**Next:** User installs .58 and runs focused README checks. Effect request/capture/
+apply and chair held/clear/accepted logs distinguish stages. Rollbacks:
+chair_return=off / effect_healing=off, restart both games. Collect/check logs after
+user report. If an extra attempt fails, stop with the failure handover.
+
+## 2026-10-11 chair return to pre-seat feet (candidate 0.10.57)
+
+**Changed:** seat.rs remembers authoritative entry feet; recovery.rs chooses only
+supported terrain/NPC-clear returns; skse.rs holds the standing actor/controller
+while fresh scan and recovery acknowledgement complete. world_export.rs exposes
+its existing NPC collector. chair_return switch22, versions/Cargo.lock, checker,
+README/ABI/Backlog and handover updated. No packet change or healing edit.
+
+**Why:** Report225755 still waits2.4s at a blocked native exit after standing.
+Prior .50/.51 failed; user authorizes one additional attempt. Native exit location
+can drift under physics while Minecraft waits. Preserve original mapping and
+return toward the previously usable Minecraft point instead.
+
+**Tested how:** New entry/scope/furniture, low exit, support/NPC/wall/ceiling and
+standing hold fixtures. Read back actor/controller after placement; ignored setter
+must not count as held. Pending targets recheck live NPCs and expire geometry at
+500ms; suspension clears scans. Package-only offline build before packaging.
+
+**Result:**81 Rust tests (75 unit,6 integration),113 Java rules,136 hook checks
+pass. Both .57 ZIP DLL hashes match release; Fabric manifest .57/protocol33.
+No install/staging/commit/push. Intermediate compile failure E0384 from removing
+mut on the existing controller variable corrected. Two fixture expectations fixed:
+unchanged entry needs no floor epsilon; test Sample.frame must be nonzero.
+Review found unsupported entry and stale pending clearance/read-back gaps; fixed
+and tested before final build. These are automated checks, not game acceptance.
+
+**Still broken / not tested:** Actual chair/table and stool/NPC exits NOT TESTED.
+This is the single extra attempt; if it fails in game, stop. Camera/hand behavior
+not established. Healing still failed until next independent step. Bed/workbench
+alignment not changed; accepted/deferred tests retained.
+
+**Next:** Separate healing .58 plan/build, then user installs final package and
+runs focused tests in README. chair_return=off plus restart restores .56 chair path.
+
 ## 2026-10-11 0.10.56 gameplay accepted; extra chair/healing attempts authorized
 
 **Changed:** Acceptance and permission records only. User reports "All working"

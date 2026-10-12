@@ -1,3 +1,175 @@
+# One launcher for both games: Play.cmd (built, real start not tested)
+
+Double-click `Play.cmd` in this folder. It starts Skyrim (through SKSE) and
+Minecraft (through Prism Launcher, instance 26.3). Steam must be running.
+
+Before starting anything it checks that the mod is installed and is the same
+version in both games, and it does not start a game that is already running.
+If something is wrong the window stays open and says "NOT STARTED:" with the
+reason. It changes no file in either game.
+
+Still by hand: load your save in Skyrim, open your world in Minecraft.
+
+To see what it would do without starting anything:
+
+```powershell
+.\tools\play.ps1 -Check
+```
+
+Expect "Passthrough mod 0.10.59 is installed in both games.", two "Would
+start" lines and "Check only: nothing was started."
+
+# 0.10.59 tested: health potions work
+
+Tested by you on 2026-10-12 and checked against the logs
+(`logs\scene-report-20261012-143915`).
+
+- **Potion of Minor Healing** (restores 25 health): works. Minecraft healed
+  4.2 points, about two hearts. This is the route Codex built in 0.10.58; it
+  had never met a restore-health potion before.
+- **Potion of Health** (raises maximum health by 20 for a minute): works since
+  0.10.59. Minecraft healed 4 points (the log says 11.7 to 15.7). Drinking it
+  again while it is still running gives nothing, in Skyrim too.
+
+- **Food**: works (second session, `logs\scene-report-20261012-144608`). Nine
+  items healed 1.7 points together, a little under one heart. That is small
+  because Skyrim's food restores 1 or 2 of its 100 health points each.
+
+Not tested: healing spells. The chair-exit change of 0.10.57 was not tried.
+Not committed, by your choice.
+
+# 0.10.59: the "Potion of Health" now gives hearts back (built, not tested)
+
+Made by Claude Code after three failed attempts by Codex. 89 Rust tests, 113
+Minecraft rule checks and 136 hook checks passed before the build. Not played.
+
+**What was wrong.** The logs of your last test show which potion you drank:
+Skyrim's maximum health went from 100 to 120 after each drink and dropped back
+by 20 exactly sixty seconds later. That is Skyrim's "Potion of Health". It does
+not restore health: it raises your maximum, and your health with it, for one
+minute. The earlier attempts only watched for health being restored, so they
+could never see this potion. Skyrim itself did its part every time.
+
+**What changed.** When Skyrim raises that bonus, Minecraft now heals by the
+same share: 20 points on Skyrim's 100 is two hearts. Nothing is taken away
+when the minute ends.
+
+## Test 0.10.59
+
+Close both games and run `.\tools\install-build.ps1`. Expect three INSTALLED
+lines with Fabric 0.10.59. Start both games as usual.
+
+1. Lose at least three hearts in Minecraft (a fall will do).
+2. Wait a minute if you drank a Potion of Health just before; a second one
+   while the first still runs gives nothing, in Skyrim too.
+3. Open Skyrim's items (I) or favourites (G), click the Potion of Health once,
+   close the menu. Expected: two hearts come back within a second.
+4. If you have a "Potion of Minor Healing" (or any "restore health" potion),
+   lose hearts again and drink it the same way. I do not know what will
+   happen: tell me whether hearts came back. Either way the log will now show
+   what Skyrim did.
+
+Then tell me the result; I collect the logs myself. If step 3 goes wrong,
+`fortify_healing=off` in `switches.txt` turns this step off.
+
+# 0.10.58 healing failed; further healing changes stopped
+
+You confirmed the potion was consumed while Minecraft hearts were missing.
+Collected logs show Minecraft health stayed at 11.665022 in all 555 samples.
+The new hook installed successfully, but it produced no qualifying healing
+request; nothing was queued or applied in Minecraft. The exact cause is unknown:
+the current logs cannot distinguish an unused effect route from a rejected effect.
+
+This rejects the one additional healing attempt you authorized. Under AGENTS.md,
+healing changes are now stopped and the failure handover is first in STATUS.md.
+Source/packages remain 0.10.58, protocol 33. No new build, install or gameplay
+retest is requested. 87 Rust tests still pass; those tests do not prove real healing.
+
+To inspect the collected evidence from the project folder:
+
+```powershell
+.\tools\check-test-report.ps1 -Report .\logs\scene-report-20261012-052857
+```
+
+Expect: effect hook installed=1; effect/owner requests, captures and applies=0;
+item_use=5 (inventory=4, favourites=1); errors=0. Potion consumption is confirmed
+by you; the native item name/effect isn't recorded by these logs.
+
+Chair outcome has not been reported. Logs contain five held/clear/accepted returns,
+which do not establish that the falls stopped. Other previously accepted tests
+remain accepted. Everything below is historical, including earlier install tests.
+
+# 0.10.58: chair and potion-healing repairs ready to test
+
+**Built; gameplay not tested.** Passed 87 Rust tests, 113 Minecraft rule checks
+and 136 hook checks. The accepted 0.10.56 work is committed on dev as 5ac01c9;
+these two repair candidates are uncommitted.
+
+Chair exits now return toward where Minecraft stood before sitting. Skyrim is
+held there after standing while fresh floor and NPC clearance are checked. A
+nearby supported point may be used if an NPC occupies the original point.
+
+Ordinary health potions bypassed the function watched by the old healing fix.
+The new hook watches the verified potion-effect function and forwards its health
+amount, including when Skyrim's health is already full. Skyrim still performs
+its normal potion effect. Logs distinguish requested, queued and applied healing.
+
+Close both games. From D:\Documents\ChatGPT\Game modding run:
+
+```powershell
+.\tools\install-build.ps1
+```
+
+Expect three INSTALLED lines, including Fabric 0.10.58. Start both games normally.
+
+1. **Lower chair/table:** use the chair that failed. E to sit, WASD to stand.
+   Repeat using a fresh E press to stand. Expected: remain above the floor and
+   resume walking, without a continuing freeze or falling through the world.
+2. **Higher stool/NPC:** sit and stand with an NPC near the exit, as in the failed
+   test. Expected: a clear return near the pre-seat position and normal walking.
+   Report which chair/exit key failed, and whether an NPC was nearby.
+3. **Inventory healing (I), Survival mode:** begin with several Minecraft hearts
+   missing. Left click one Skyrim health potion. Its count should drop by one.
+   Close the menu: Minecraft hearts should recover once, within about a second.
+4. **Favourites healing (G):** with hearts missing again, use one health potion.
+   Leave the menu open for ten seconds before closing it. Expected: hearts recover
+   once after closing; waiting in the menu should not lose the healing request.
+
+Report 1-4 separately. I will collect the logs directly after your report. A
+used potion alone doesn't prove Minecraft healing. The amount scales with full
+health, so it need not restore the same displayed number in both games.
+
+Individual rollback: add chair_return=off or effect_healing=off to switches.txt
+in this project, then restart both games. The former restores the .56 chair exit;
+the latter restores the previous healing capture route. No switches required by
+default. Both are the single additional attempts you requested; if one fails in
+play, it stops with a failure handover.
+
+Accepted left clicks, held entering E, movement, door and owned-bed checks need
+no full repeat. Workbench, food/spells, custom/alternate potion effect classes,
+native-hand visibility, door-facing and earlier deferred checks remain not tested.
+Everything below describes older steps and their historical test instructions.
+
+# 0.10.57 chair return candidate built; healing step next
+
+Built with81 Rust tests,113 Minecraft rules and136 hook checks passed. Chair
+exit gameplay **not tested**. The bridge now remembers where Minecraft stood
+before sitting, holds Skyrim there after standing, then checks fresh floor/NPC
+clearance before movement resumes. A blocked native exit no longer sets the
+Minecraft destination. A nearby supported return may be used if entry is occupied.
+
+The separate healing step will follow; install its final package once ready.
+For chair testing then: use the same lower chair with table ahead, E to sit and
+WASD to stand; repeat with a fresh E press to stand. Try the higher stool with an
+NPC nearby. Expected: stay above the floor and resume walking, with no continuing
+freeze or fall. Keep your original E held once: remain seated until releasing it
+and pressing again. Record which chair and exit key failed if it does.
+
+Rollback: chair_return=off in project switches.txt, restart both games. Other
+accepted movement/door/bed/click tests need no full repeat. Native hand visibility,
+workbench and earlier deferred checks remain not tested. This is the user's one
+additional chair attempt; prior failures are retained below.
+
 # 0.10.56 left-click tests passed; chair and healing reopened
 
 User reports **all .56 tests working**: inventory use/equip, taking, held click,

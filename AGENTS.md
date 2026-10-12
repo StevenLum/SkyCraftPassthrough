@@ -56,6 +56,9 @@ Passthrough mod from minecraft to skyrim
   despite the earlier two-attempt stop. Diagnose first and implement them as
   separate steps. Preserve earlier failures; if this extra attempt fails, stop
   and write the failure handover again. This does not authorize unlimited retries.
+- 2026-10-12: after Codex's three failed healing attempts (.30, .53, .58) the
+  user asked Claude Code for one more ("give it a try"). One attempt, 0.10.59;
+  if it fails in play, stop and write the failure handover.
 
 - If something is not tested, write **"not tested"**. Never imply you verified
   something you didn't.
@@ -183,6 +186,15 @@ In a newest-first file, add at the top and leave older text as it is.
   in the same order in both; add new ones at the end.
 - After I report a test: `.\tools\collect-scene-logs.ps1`, then
   `.\tools\check-test-report.ps1` prints the evidence feature by feature.
+- My report, pass or fail, says what I saw, not what happened. Before fixing
+  a reported failure, work out from the logs what I actually did (which item,
+  which door, which key) and what the game itself did in answer, and say so if
+  it differs from what the test meant. Potion healing "failed" three times
+  (.30, .53, .58) while the logs showed Skyrim's maximum health going from 100
+  to 120 for sixty seconds after each drink: I was drinking a potion that
+  raises the maximum, not one that restores health, and the .58 fix for
+  restoring was already working. A number in the log that nobody can explain
+  is the first thing to chase, not something to set aside.
 
 ## Environment
 

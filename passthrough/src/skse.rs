@@ -35,7 +35,7 @@ const fn text<const N: usize>(value: &[u8]) -> [u8;N] {
 }
 #[unsafe(no_mangle)]
 pub static SKSEPlugin_Version: VersionData = VersionData {
-    data_version: 1, plugin_version: 0x000A_0038,
+    data_version: 1, plugin_version: 0x000A_003B,
     name: text(b"PassthroughPractice"), author: text(b"Passthrough practice project"),
     email: [0;252], independence_ex: 2, independence: 4,
     versions: [RUNTIME,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], minimum_skse: 0,
@@ -95,6 +95,12 @@ pub unsafe extern "C" fn SKSEPlugin_Load(api: *const SkseInterface) -> bool {
             scale:resolve(188105)?,processes:resolve(400315)?,lookup:resolve(12332)?,
             lock:resolve(68233)?,unlock:resolve(68239)?};
         if let Ok(modifier)=resolve(38469) {crate::damage::configure(modifier);}
+        // ValueModifierEffect::ModifyActorValue slot0x20. Ordinary health potions
+        // call Actor::ModActorValue directly and bypass ActorValueOwner slot6.
+        match resolve(206143) {
+            Ok(table)=>crate::damage::configure_effect(table),
+            Err(_)=>{let _=write_log(Role::Skyrim,"event=SCENE_HEAL_EFFECT_HOOK state=unavailable reason=missing_address");}
+        }
         if let (Ok(crosshair),Ok(lookup),Ok(damage))=(resolve(401585),resolve(12332),resolve(37335)) {
             // Actor::IsHostileToActor; without it an enemy is reported as an ordinary character.
             let hostile=resolve(37537).ok();
@@ -259,7 +265,7 @@ struct Puppet {
     seat:Option<u32>,
     seat_watch:crate::seat::Watch,
     sitting:crate::seat::Intent,
-    seat_published_ms:u64,
+    seat_published_ms:u64,chair_scope:Option<(usize,u64)>,chair_held:bool,chair_hold_failed:bool,chair_clearance:Option<(u64,Vec<[f64;6]>)>,
 }
 /// How far Skyrim's character may be from where Minecraft says it is and still count as
 /// "in the same spot" when its cell changes. The same tolerance a session start uses.
@@ -289,6 +295,9 @@ struct Vector4([f32;4]);
 
 impl Puppet {
     unsafe fn suspend(&mut self, player:Object) {
+        if self.chair_held || self.chair_hold_failed {
+            self.recovery.clear();self.recovery_scan=None;self.recovery_exporter.reset();self.chair_clearance=None;
+        }
         if let Some(anchor)=self.anchor {
             let position:[f32;3]=unsafe { read_at(player,0x54) };
             self.suspended=Some((anchor,position));
@@ -315,7 +324,7 @@ impl Puppet {
                 }
             }
         }
-        self.gravity = None; self.anchor = None; self.last = None;
+        self.gravity = None; self.anchor = None; self.last = None;self.chair_held=false;self.chair_hold_failed=false;
     }
     unsafe fn restore_gravity(&mut self,player:Object) {
         if let Some((saved,gravity))=self.gravity.take() {
@@ -326,6 +335,51 @@ impl Puppet {
                 }
             }
         }
+    }
+    /// Existing normal steering writes, also used after a chair is fully standing.
+    unsafe fn place(&mut self,player:Object,target:[f32;3])->bool {
+        let ctrl=unsafe {controller(player)};
+        if ctrl.is_null() {return false;}
+        if self.gravity.is_none_or(|(old,_)| old != ctrl as usize) {
+            self.gravity = Some((ctrl as usize,unsafe { read_at(ctrl,0x248) }));
+        }
+        unsafe { ptr::write_unaligned(ctrl.add(0x248).cast::<f32>(),0.0); }
+        let vtable: *const usize = unsafe { read_at(player,0) };
+        let set_position: unsafe extern "C" fn(Object,*const [f32;3],bool) = unsafe { mem::transmute(*vtable.add(0xA9)) };
+        unsafe { set_position(player,&target,true); }
+        let ctrl_vtable: *const usize = unsafe { read_at(ctrl,0) };
+        let velocity: unsafe extern "C" fn(Object,*const Vector4) = unsafe { mem::transmute(*ctrl_vtable.add(7)) };
+        unsafe {
+            velocity(ctrl,&Vector4([0.0;4]));
+            ptr::write_unaligned(ctrl.add(0x240).cast::<f32>(),target[2]);
+            ptr::write_unaligned(ctrl.add(0x244).cast::<f32>(),0.0);
+        }
+        true
+    }
+    /// Hold only a standing actor at the pre-seat point. Native furniture still
+    /// owns every nonzero sit state. This prevents free exit physics during scan/ack.
+    unsafe fn hold_chair(&mut self,player:Object,sample:Sample,entry:[f64;3])->io::Result<Option<[f32;3]>> {
+        if unsafe {crate::seat::of(player)}!=0 {return Ok(None);}
+        let Some(target)=self.anchor.and_then(|a|a.target(Sample{mc:entry,..sample})) else {return Ok(None);};
+        let before:[f32;3]=unsafe {read_at(player,0x54)};
+        let ctrl=unsafe {controller(player)};
+        if ctrl.is_null() {return Ok(None);}
+        let controller_before:[f32;3]=unsafe {[read_at(ctrl,0x240),read_at(ctrl,0x244),read_at(ctrl,0x248)]};
+        if !unsafe {self.place(player,target)} {return Ok(None);}
+        let actual:[f32;3]=unsafe {read_at(player,0x54)};
+        let controller_after:[f32;3]=unsafe {[read_at(ctrl,0x240),read_at(ctrl,0x244),read_at(ctrl,0x248)]};
+        let placed=(0..3).all(|i|(actual[i]-target[i]).abs()<=0.5)
+            && (controller_after[0]-target[2]).abs()<=0.5 && controller_after[1]==0.0 && controller_after[2]==0.0;
+        if !placed {
+            if !self.chair_hold_failed {write_log(Role::Skyrim,format!("event=SCENE_CHAIR_RETURN state=not_placed entry={entry:?} native_before={before:?} requested={target:?} native_actual={actual:?} controller_after={controller_after:?}"))?;}
+            self.chair_hold_failed=true;self.chair_held=false;return Ok(None);
+        }
+        if !self.chair_held {
+            self.chair_held=true;self.chair_hold_failed=false;
+            write_log(Role::Skyrim,format!("event=SCENE_CHAIR_RETURN state=held entry={entry:?} native_before={before:?} requested={target:?} native_actual={actual:?} controller_before={controller_before:?} controller_after={controller_after:?}"))?;
+        }
+        crate::scene::align(Some((sample,self.anchor.unwrap())));
+        Ok(Some(target))
     }
     /// No position/controller writes: Skyrim owns its furniture until standing/aligned.
     unsafe fn publish_seat(&mut self,player:Object,sample:Sample,addresses:&Addresses,now:u64)->io::Result<()> {
@@ -352,32 +406,54 @@ impl Puppet {
         Ok(())
     }
     /// Scan the arrival before issuing a teleport. Held replies never permit movement.
-    unsafe fn recover(&mut self,player:Object,sample:Sample,actual:[f32;3],raw:[f64;3],cell:u32,space:u32,addresses:&Addresses)->io::Result<crate::recovery::Reply> {
+    unsafe fn recover(&mut self,player:Object,sample:Sample,actual:[f32;3],raw:[f64;3],cell:u32,space:u32,addresses:&Addresses,chair:bool)->io::Result<crate::recovery::Reply> {
         use crate::recovery::Reply;
         let key=(sample.sender,sample.world,sample.save_id,sample.mc_id,crate::save_identity::revision(),cell,space);
         if self.recovery_scan.is_some_and(|old|old!=key) {self.recovery.clear();}
         if self.recovery.pending() {
+            if chair {
+                let target=self.recovery.target().unwrap();
+                let mut current=crate::world::Snapshot::default();
+                if let Some(api)=addresses.world.as_ref() {
+                    let native_cell=unsafe {read_at::<Object>(player,0x60)};
+                    unsafe {self.recovery_exporter.npcs(api,player,native_cell,self.anchor.unwrap(),Sample{mc:target,..sample},&mut current)?;}
+                }
+                let now=crate::windows::now_ms();
+                let valid=self.chair_clearance.as_ref().is_some_and(|(at,boxes)|now>=*at && now-*at<=500
+                    && crate::recovery::chair_destination_clear(target,boxes,&current.npcs));
+                if !valid {
+                    write_log(Role::Skyrim,format!("event=SCENE_CHAIR_RETURN state=invalidated target={target:?} npc={:?} reason=occupied_or_scan_expired",crate::recovery::blocking_npc(target,&current.npcs)))?;
+                    self.recovery.clear();self.recovery_scan=None;self.recovery_exporter.reset();self.chair_clearance=None;
+                    return Ok(Reply::Waiting(0,raw));
+                }
+            }
             let result=self.recovery.poll(sample,actual,raw,cell,space);
-            if matches!(result,Reply::Complete) {self.recovery_scan=None;self.recovery_exporter.reset();}
+            if matches!(result,Reply::Complete) {self.recovery_scan=None;self.recovery_exporter.reset();self.chair_clearance=None;}
             return Ok(result);
         }
         let mut target=raw;
-        if let Some(api)=addresses.world.as_ref().filter(|_|crate::switches::on(Role::Skyrim,crate::switches::SAFE_ARRIVAL)) {
+        if let Some(api)=addresses.world.as_ref().filter(|_|chair || crate::switches::on(Role::Skyrim,crate::switches::SAFE_ARRIVAL)) {
             if self.recovery_scan!=Some(key) {
                 self.recovery_scan=Some(key);self.recovery_exporter.reset();self.recovery_blocked=false;
             }
             let local=Sample{mc:raw,..sample};
-            let anchor=Anchor::new(local,actual);
+            let anchor=if chair {self.anchor.unwrap()} else {Anchor::new(local,actual)};
             let Some(scan)= (unsafe {self.recovery_exporter.frame(api,player,anchor,local)?}) else {return Ok(Reply::Waiting(0,raw));};
             if !scan.active {return Ok(Reply::Waiting(0,raw));}
-            let Some(clear)=crate::recovery::clear_feet(raw,&scan.boxes) else {
+            let clear=if chair {crate::recovery::chair_return(raw,&scan.boxes,&scan.npcs)} else {crate::recovery::clear_feet(raw,&scan.boxes)};
+            let Some(clear)=clear else {
                 if !self.recovery_blocked {
                     write_log(Role::Skyrim,format!("event=SCENE_RECOVERY state=terrain_blocked target={raw:?} boxes={}",scan.boxes.len()))?;
+                    if chair {
+                        write_log(Role::Skyrim,format!("event=SCENE_CHAIR_RETURN state=blocked entry={raw:?} native_held={actual:?} terrain={:?} npc={:?} boxes={} npcs={}",crate::recovery::blocking_terrain(raw,&scan.boxes),crate::recovery::blocking_npc(raw,&scan.npcs),scan.boxes.len(),scan.npcs.len()))?;
+                    }
                     self.recovery_blocked=true;
                 }
+                if chair {self.recovery_exporter.reset();self.chair_clearance=None;}
                 return Ok(Reply::Failed);
             };
             target=clear;
+            if chair {self.chair_clearance=Some((crate::windows::now_ms(),scan.boxes.clone()));write_log(Role::Skyrim,format!("event=SCENE_CHAIR_RETURN state=clear entry={raw:?} target={target:?} npcs={}",scan.npcs.len()))?;}
             write_log(Role::Skyrim,format!("event=SCENE_RECOVERY state=terrain_checked raw={raw:?} target={target:?} boxes={}",scan.boxes.len()))?;
         }
         Ok(self.recovery.poll(sample,actual,target,cell,space))
@@ -393,17 +469,24 @@ impl Puppet {
                 self.seat_watch.reset();return Ok(false);
             }
             SitDecision::Align=>{
-                unsafe {self.restore_gravity(player);}
                 self.interaction.consume(sample);self.attack.block();self.seat_watch.reset();
-                let actual:[f32;3]=unsafe {read_at(player,0x54)};
-                let target=self.anchor.unwrap().minecraft(actual.map(f64::from));
+                let entry=if addresses.world.is_some() && crate::switches::on(Role::Skyrim,crate::switches::CHAIR_RETURN)
+                    && self.chair_scope==Some((cell,crate::save_identity::revision())) {self.sitting.entry(sample)} else {None};
+                let (actual,target)=if let Some(entry)=entry {
+                    let Some(held)= (unsafe {self.hold_chair(player,sample,entry)?}) else {return Ok(true);};
+                    (held,entry)
+                } else {
+                    unsafe {self.restore_gravity(player);}
+                    let actual:[f32;3]=unsafe {read_at(player,0x54)};
+                    (actual,self.anchor.unwrap().minecraft(actual.map(f64::from)))
+                };
                 let cell_ptr=cell as Object;
                 let cell_id=unsafe {read_at(cell_ptr,0x14)};
                 let space=unsafe {read_at::<Object>(cell_ptr,0x128)};
                 let space_id=if space.is_null() {0} else {unsafe {read_at(space,0x14)}};
-                match unsafe {self.recover(player,sample,actual,target,cell_id,space_id,addresses)?} {
+                match unsafe {self.recover(player,sample,actual,target,cell_id,space_id,addresses,entry.is_some())?} {
                     crate::recovery::Reply::Complete=>{
-                        self.sitting.reset();self.exporter.reset();self.seat_published_ms=0;
+                        self.sitting.reset();self.exporter.reset();self.seat_published_ms=0;self.chair_scope=None;self.chair_held=false;self.chair_hold_failed=false;self.chair_clearance=None;
                         write_log(Role::Skyrim,format!("event=SCENE_SITTING state=standing_aligned mc={:?} sky={actual:?}",sample.mc))?;
                         return Ok(false);
                     }
@@ -540,7 +623,7 @@ impl Puppet {
             let mut initial=crate::save_identity::origin(sample,current,cell_id,worldspace_id);
             if matches!(initial,Err(5)) || self.recovery.pending() {
                 if let Some(target)=crate::save_identity::recovery_target(sample,current,cell_id,worldspace_id) {
-                    match unsafe {self.recover(player,sample,current,target,cell_id,worldspace_id,addresses)?} {
+                    match unsafe {self.recover(player,sample,current,target,cell_id,worldspace_id,addresses,false)?} {
                         crate::recovery::Reply::Complete=>{initial=crate::save_identity::origin(sample,current,cell_id,worldspace_id);},
                         pending=>{
                             let mut reply=self.exporter.empty();
@@ -627,20 +710,7 @@ impl Puppet {
                 }
             }
         } else {self.seat_watch.reset();}
-        if self.gravity.is_none_or(|(old,_)| old != ctrl as usize) {
-            self.gravity = Some((ctrl as usize,unsafe { read_at(ctrl,0x248) }));
-        }
-        unsafe { ptr::write_unaligned(ctrl.add(0x248).cast::<f32>(),0.0); }
-        let vtable: *const usize = unsafe { read_at(player,0) };
-        let set_position: unsafe extern "C" fn(Object,*const [f32;3],bool) = unsafe { mem::transmute(*vtable.add(0xA9)) };
-        unsafe { set_position(player,&target,true); }
-        let ctrl_vtable: *const usize = unsafe { read_at(ctrl,0) };
-        let velocity: unsafe extern "C" fn(Object,*const Vector4) = unsafe { mem::transmute(*ctrl_vtable.add(7)) };
-        unsafe {
-            velocity(ctrl,&Vector4([0.0;4]));
-            ptr::write_unaligned(ctrl.add(0x240).cast::<f32>(),target[2]);
-            ptr::write_unaligned(ctrl.add(0x244).cast::<f32>(),0.0);
-        }
+        if !unsafe {self.place(player,target)} {return Ok(());}
         crate::overlay::allow(Some(sample));
         crate::scene::align(Some((sample,self.anchor.unwrap())));
         let key = (sample.sender,sample.world,sample.frame);
@@ -650,11 +720,11 @@ impl Puppet {
         if let Some(api)=addresses.interaction.as_ref() {
             unsafe {self.interaction.apply(api,player,sample)?;}
             if self.interaction.grounding() {
-                self.sitting.arm_native(sample,now);self.seat_published_ms=0;
+                self.sitting.arm_native(sample,now);self.seat_published_ms=0;self.chair_scope=None;self.chair_held=false;self.chair_hold_failed=false;self.chair_clearance=None;
                 unsafe {self.restore_gravity(player);}
             }
             if self.interaction.take_chair() {
-                self.sitting.arm(sample,now);self.seat_published_ms=0;
+                self.sitting.arm(sample,now);self.seat_published_ms=0;self.chair_scope=Some((cell,crate::save_identity::revision()));self.chair_held=false;self.chair_hold_failed=false;self.chair_clearance=None;
                 unsafe {self.restore_gravity(player);}
                 self.seat_watch.reset();
                 write_log(Role::Skyrim,format!("event=SCENE_SITTING state=requested sequence={} mc={:?} sky={:?}",sample.interact_seq,sample.mc,unsafe {read_at::<[f32;3]>(player,0x54)}))?;
@@ -749,6 +819,62 @@ unsafe extern "C" fn update(player: Object, delta: f32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn chair_hold_places_only_standing_actor_and_restores_original_gravity() {
+        static IGNORE:AtomicBool=AtomicBool::new(false);
+        unsafe extern "C" fn position(player:Object,at:*const [f32;3],_:bool) {
+            if IGNORE.load(Ordering::Acquire) {return;}
+            unsafe {ptr::write_unaligned(player.add(0x54).cast::<[f32;3]>(),*at);}
+        }
+        unsafe extern "C" fn velocity(ctrl:Object,at:*const Vector4) {
+            unsafe {ptr::write_unaligned(ctrl.add(0x100).cast::<[f32;4]>(),(*at).0);}
+        }
+        let mut actor=[0usize;128];let player=actor.as_mut_ptr().cast::<u8>();
+        let mut process=[0usize;4];let mut middle=[0usize;80];let mut data=[0usize;100];
+        let ctrl=data.as_mut_ptr().cast::<u8>();
+        let mut player_table=[0usize;0xAE];player_table[0xA9]=position as *const () as usize;
+        let ctrl_table=[0usize,0,0,0,0,0,0,velocity as *const () as usize];
+        unsafe {
+            ptr::write(player.cast::<usize>(),player_table.as_ptr() as usize);
+            ptr::write_unaligned(player.add(0xF8).cast::<usize>(),process.as_mut_ptr() as usize);
+            ptr::write(process.as_mut_ptr().add(1),middle.as_mut_ptr() as usize);
+            ptr::write(middle.as_mut_ptr().add(0x250/8),ctrl as usize);
+            ptr::write(ctrl.cast::<usize>(),ctrl_table.as_ptr() as usize);
+            ptr::write_unaligned(ctrl.add(0x248).cast::<f32>(),9.8);
+            ptr::write_unaligned(ctrl.add(0x100).cast::<[f32;4]>(),[4.0;4]);
+            ptr::write_unaligned(player.add(0x54).cast::<[f32;3]>(),[200.0,-40.0,-70.0]);
+        }
+        let sample=Sample{sender:7,world:2,frame:1,mc:[10.0,128.125,20.0],active:1,..Default::default()};
+        let anchor=Anchor::new(sample,[100.0,200.0,300.0]);
+        let mut puppet=Puppet{anchor:Some(anchor),..Default::default()};
+        unsafe {ptr::write_unaligned(player.add(0xC8).cast::<u32>(),3<<14);}
+        assert_eq!(unsafe {puppet.hold_chair(player,sample,sample.mc)}.unwrap(),None);
+        assert_eq!(unsafe {read_at::<[f32;3]>(player,0x54)},[200.0,-40.0,-70.0]);
+        assert_eq!(unsafe {read_at::<f32>(ctrl,0x248)},9.8);
+        unsafe {ptr::write_unaligned(player.add(0xC8).cast::<u32>(),0);}
+        IGNORE.store(true,Ordering::Release);
+        assert_eq!(unsafe {puppet.hold_chair(player,sample,sample.mc)}.unwrap(),None);
+        assert!(puppet.chair_hold_failed);assert!(!puppet.chair_held);
+        IGNORE.store(false,Ordering::Release);
+        assert_eq!(unsafe {puppet.hold_chair(player,sample,sample.mc)}.unwrap(),Some([100.0,200.0,300.0]));
+        assert_eq!(unsafe {read_at::<[f32;3]>(player,0x54)},[100.0,200.0,300.0]);
+        assert_eq!(unsafe {read_at::<[f32;4]>(ctrl,0x100)},[0.0;4]);
+        assert_eq!(unsafe {read_at::<f32>(ctrl,0x240)},300.0);
+        assert_eq!(unsafe {read_at::<f32>(ctrl,0x244)},0.0);
+        assert_eq!(unsafe {read_at::<f32>(ctrl,0x248)},0.0);
+        // Repeated pin must not replace the saved gravity with its temporary zero.
+        unsafe {puppet.hold_chair(player,sample,sample.mc)}.unwrap();
+        unsafe {puppet.restore_gravity(player);}
+        assert_eq!(unsafe {read_at::<f32>(ctrl,0x248)},9.8);
+        let foreign=Sample{world:3,..sample};
+        assert_eq!(unsafe {puppet.hold_chair(player,foreign,sample.mc)}.unwrap(),None);
+        puppet.chair_clearance=Some((crate::windows::now_ms(),vec![]));
+        puppet.recovery_scan=Some((7,2,[0;16],[0;16],0,123,0));
+        unsafe {puppet.suspend(player);}
+        assert!(puppet.chair_clearance.is_none());assert!(puppet.recovery_scan.is_none());
+        assert!(!puppet.recovery.pending());assert!(puppet.anchor.is_none());
+        crate::scene::align(None);
+    }
     #[test]
     fn skse_metadata_layout_and_runtime_are_exact() {
         assert_eq!(mem::size_of::<VersionData>(),0x350);

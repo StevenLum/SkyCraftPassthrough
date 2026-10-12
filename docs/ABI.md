@@ -1,3 +1,122 @@
+## 2026-10-12 0.10.59 healing seen in play (no format change)
+
+Report 20261012-143915. ActorValueOwner slot 3 returns the plain value in this
+runtime: `plain=100` while slot 2 gave `lasting=120` with the potion running.
+A fortify-health potion sits in the permanent value (slot 2), not in the
+temporary modifier (`passing=0` throughout). ValueModifierEffect slot 0x20 is
+called for a restore-health potion: requested=25, value=24, base 0x0003EB15,
+item 0x0003EADD (Potion of Minor Healing); the clamp (slot 295) saw the same
+25. Some standing effect on the player (base 0x000E5F4B, item 0x000E5F4C)
+calls slot 0x20 every frame with requested=0, value=24.
+
+## 0.10.59 fortify-health capture (protocol 33 unchanged)
+
+Report 20261012-052857 identifies the potion of the failed tests as a fortify
+effect: SCENE_DAMAGE_READY skyrim_max 120, 100, 120, 120; SCENE_DAMAGE_PROBE
+supplied=-20 at 290842593 and at 290936937, sixty seconds after the last
+drink. Fortify raises maximum and current health together; no restore call.
+
+Health bonus = (permanent value, owner slot 2, + temporary modifier, AE 38469
+with modifier 1) - plain value, owner slot 3 (CommonLib ActorValueOwner.h:
+1 current, 2 permanent, 3 base). Slot 3 is NOT yet seen in this runtime; if it
+is not finite or not above zero the temporary modifier alone is used.
+Read each frame in `damage::arm`, kept per damage generation (`State.bonus`),
+cleared on reset and on a new generation; first value only remembered.
+Rise >= 0.5 queues the usual heal event: (sequence, rise / plain capped at 1,
+-rise). No new event kind; Minecraft's receiver unchanged.
+
+Log: `SCENE_HEAL_FORTIFY epoch state=first_seen|raised|lowered bonus was plain
+lasting passing skyrim_max`; `SCENE_HEAL_CAPTURE ... source=fortify`;
+`SCENE_HEAL_DROP reason=switched_off|queue_full|no_plain_health`;
+`SCENE_HEAL_EFFECT_RAW requested value recover flags base_id item_id` for
+every ValueModifierEffect slot 0x20 call on the steered actor before any
+filter (limit 200 a process). Switch bit 24 `fortify_healing`.
+
+## 2026-10-12 0.10.58 actual healing failure evidence (no format change)
+
+Report logs/scene-report-20261012-052857: Skyrim line29/time290832375 confirms
+SCENE_HEAL_EFFECT_HOOK state=installed slot=32 protection_restored=true; owner6
+installed too. Both sides protocol33, all switches enabled, no error/disabled.
+Five item-use events: favourites1 at290863921, inventory4 at290873015/290873984/
+290874781/290875765. User confirms actual potion consumed with MC hearts missing.
+Actual item/base FormIDs, effect class and count aren't logged for that consumption.
+
+Zero effect/owner restoration requests, captures, drops or applies. All555 client
+SCENE_HEALTH_CLIENT samples report minecraft_health11.665022. This proves no
+qualifying request reached the bridge's healing queue, not a failed MC heal call.
+SCENE_HEAL_EFFECT_REQUEST is after metadata filter/native return and before
+forward_restore lease gate; raw nonqualifying callbacks aren't logged. Therefore
+absence cannot distinguish virtual32 not reached from filtered AV/amount/flags/
+metadata. Stale lease alone would still leave a qualifying request. Do not claim
+callback never executed, a potion type, or root cause from these logs.
+
+Native current/max health changed100-120; cause unspecified. .58 real healing
+FAILED; the single extra attempt is stopped. .30/.53/.58 failures preserved.
+87 Rust tests still pass, showing fixture limitations. No source/packet change.
+
+## 0.10.58 ordinary health effect interception (protocol33 unchanged)
+
+Verified pinned CommonLib ValueModifierEffect primary vtable AE206143, slot0x20.
+Installed runtime table RVA0x18FCFC8, ModifyActorValue RVA0x5E7630. ABI
+(effect*,Actor*,float amount,u32 ActorValue): RCX/RDX/XMM2/R9D. SentinelFFFFFFFF
+resolves actorValue at effect+0x90. ModifyOnStart RVA0x5E71D0 and ModifyOnUpdate
+RVA0x5E7340 dispatch slot0x20. With base kRecover clear, this calls Actor::
+ModActorValue AE38468 directly (RVA0x6C5220), bypassing ActorValueOwner+0xB8
+virtual6. That owner slot/offset was correct but ordinary potions don't use it.
+
+ActiveEffect effect-definition pointer+0x48 -> baseEffect+0x10 -> flags+0x68.
+kRecover bit1 clear denotes damage-modifier restoration; set denotes temporary/
+permanent value buff and is excluded. Item pointer+0x40, base/item FormID+0x14;
+effect native uniqueID u16+0x84 is NOT a FormID. Copy before native callback;
+instant effects may be released inside it. Capture finite positive resolved
+health24 only, with nonnull actor/effect/definition/base. Actor pointer logged;
+player identity and fresh pair/revision/menu lease still gate actual forwarding.
+
+Native callback called once with original arguments. Qualifying effect call
+enters thread-local depth guard, restored by Drop even on Rust unwind; owner6
+original still runs but its capture is skipped inside guard. Effect capture then
+uses existing forward_restore. Native positive clamp remains untouched/no second
+capture. No STATE lock during native callback. Optional address/protection failure
+logs unavailable and retains previous route. effect_healing=off is new bit23;
+healing=off still disables all healing forwarding. Only base effect table hooked,
+not derived Peak/Accumulating/Dual overrides. Gameplay NOT TESTED.
+
+Vanilla AlchRestoreHealth MGEF3EB15 is health24/ValueModifier archetype0,
+flags0x200A00 (Recover clear); potions use magnitudes25/50/75/100/150. Records and
+read-only instructions stay in ignored logs/native-heal-01058.txt and potion-records
+file. No assets/extracted data enter tracked source. No full-health effect gate was
+found; a simulated direct modifier at full120 leaves native health unchanged but
+retains requested25. This fixture proves adapter behavior, not actual game healing.
+
+SCENE_HEAL_EFFECT_HOOK state=installed/unavailable reports installation.
+SCENE_HEAL_EFFECT_REQUEST reports amount/actor/value/effect_id/base_id/item_id;
+SCENE_HEAL_CAPTURE remains actual queued request; SCENE_HEAL_APPLY in Minecraft
+reports once-only application before/after. Minecraft event packet/normalization/
+queue/ack unchanged. A potion click log alone cannot establish any of these.
+
+## 0.10.57 chair return hold and clearance (protocol33 unchanged)
+
+Intent::arm stores finite pre-seat Sample.mc for ordinary chairs only. Owner
+sender/world/save/mc plus Puppet native cell/save revision must match; native
+bed/crafting intent never receives this entry return. After sitState==0 only,
+existing SetPosition slot0xA9 and controller writes hold the original anchor's
+entry target. Controller native height+0x240, vertical velocity+0x244, gravity+
+0x248 are read back; actor feet+0x54 must match within0.5 native units. Ignored
+setter logs not_placed and cannot start recovery. Saved gravity restored on release.
+
+Clearance body .6x1.8 matches Minecraft. Fresh complete scan must support centre
+feet within0.1251 vertically and clear solid boxes; NPC .6x1.8 boxes obstruct,
+never support. Existing<=0.5 floor correction first; bounded .25-grid alternatives
+within1.5, nearest first, require sampled support and clear swept standing body
+against terrain. Pending target uses same geometry<=500ms plus live NPC recheck.
+Blocked/expired/suspended scans cannot reuse an old accepted target. Original
+mapping and existing recovery token/ack packets retained. Missing world support
+or chair_return=off (bit22) retains .56 native alignment. Gameplay NOT TESTED.
+
+SCENE_CHAIR_RETURN states held/not_placed/clear/blocked/invalidated include entry,
+requested/actual native coordinates, controller read-back and offending terrain/
+NPC where applicable. These logs verify measured placement, not perceived outcome.
+
 ## 2026-10-11 0.10.56 accepted routing evidence (no format change)
 
 Report225755: inventory14/favourites1 item_use, other2 pointer, passive_skipped1=3/

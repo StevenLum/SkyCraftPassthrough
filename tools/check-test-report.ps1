@@ -98,6 +98,7 @@ Show-Tally 'Intentional sitting and exit (0.10.50)' $skyrim 'event=SCENE_SITTING
 Show-Tally 'Furniture landing (0.10.52)' $skyrim 'event=SCENE_FURNITURE_GROUND state=(\w+)'
 Show-Tally 'Native first-person model (0.10.54)' $skyrim 'event=SCENE_NATIVE_HANDS state=(\w+)'
 Show-Tally 'Recovery terrain checks (0.10.51)' $skyrim 'event=SCENE_RECOVERY state=(terrain_\w+)'
+Show-Tally 'Chair return to entry (0.10.57)' $skyrim 'event=SCENE_CHAIR_RETURN state=(\w+)'
 
 Section 'Skyrim menus (0.10.20 keys, 0.10.31 W A S D and repeat)'
 Write-Host '  Commands: 1-4 directions, 5 confirm, 6 back, 7 quicksave, 8 quickload, 9 take all,'
@@ -126,6 +127,12 @@ Section 'Skyrim healing (0.10.30)'
 Show-Count 'Positive health changes Skyrim reported' (Select-Lines $skyrim 'event=SCENE_DAMAGE_CLAMP requested=[0-9]')
 Show-Count 'Native restoration hooks installed (0.10.53)' (Select-Lines $skyrim 'event=SCENE_HEAL_HOOK')
 Show-Count 'Native restore requests (0.10.53)' (Select-Lines $skyrim 'event=SCENE_HEAL_REQUEST')
+Show-Tally 'Potion effect hook (0.10.58)' $skyrim 'event=SCENE_HEAL_EFFECT_HOOK state=(\w+)'
+Show-Count 'Potion effect restore requests (0.10.58)' (Select-Lines $skyrim 'event=SCENE_HEAL_EFFECT_REQUEST')
+Show-Tally 'Health bonus changes, fortify potions (0.10.59)' $skyrim 'event=SCENE_HEAL_FORTIFY .*state=(\w+)'
+Show-Tally 'Potion effect calls on the player, by actor value (24 = health)' $skyrim 'event=SCENE_HEAL_EFFECT_RAW .* value=(\d+)'
+Show-Tally '  of those on health, raising the maximum (recover) or not' $skyrim 'event=SCENE_HEAL_EFFECT_RAW .* value=24 recover=(\w+)'
+Show-Tally 'Heals not handed over, by reason' $skyrim 'event=SCENE_HEAL_DROP .*reason=(\w+)'
 Show-Count 'Restores handed over by Skyrim' (Select-Lines $skyrim 'event=SCENE_HEAL_CAPTURE')
 Show-Count 'Restores applied in Minecraft' (Select-Lines $client 'event=SCENE_HEAL_APPLY')
 

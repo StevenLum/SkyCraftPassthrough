@@ -58,17 +58,22 @@ pub enum SitDecision {Idle,Held,Stand(u8),Align,Failed,GaveUp}
 #[derive(Default)]
 pub struct Intent {
     owner:Option<Owner>,started:u64,entered:bool,leaving:bool,native:bool,
-    interact:u64,attempt_ms:Option<u64>,tries:u8,gave_up:bool,
+    interact:u64,attempt_ms:Option<u64>,tries:u8,gave_up:bool,entry:Option<[f64;3]>,
 }
 impl Intent {
     pub fn reset(&mut self) {*self=Self::default();}
     pub fn active(&self)->bool {self.owner.is_some()}
     pub fn arm(&mut self,s:crate::position::Sample,now:u64) {
-        *self=Self{owner:Some(owner(s)),started:now,interact:s.interact_seq,..Self::default()};
+        *self=Self{owner:Some(owner(s)),started:now,interact:s.interact_seq,
+            entry:s.mc.iter().all(|v|v.is_finite() && v.abs()<30_000_000.0).then_some(s.mc),..Self::default()};
     }
     /// Bed/crafting animations finish in Skyrim; only align after it is standing.
     pub fn arm_native(&mut self,s:crate::position::Sample,now:u64) {
-        self.arm(s,now);self.native=true;self.entered=true;
+        self.arm(s,now);self.native=true;self.entered=true;self.entry=None;
+    }
+    /// Chair-only return point; never belongs to another pair or native bed/crafting.
+    pub fn entry(&self,s:crate::position::Sample)->Option<[f64;3]> {
+        if self.owner==Some(owner(s)) && !self.native {self.entry} else {None}
     }
     pub fn poll(&mut self,s:crate::position::Sample,state:u32,now:u64)->SitDecision {
         if self.owner.is_none() {return SitDecision::Idle;}
@@ -118,6 +123,22 @@ impl Watch {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn chair_entry_survives_a_hold_but_never_another_owner_or_native_furniture() {
+        let s=crate::position::Sample{sender:7,world:2,mc:[10.0,128.125,20.0],save_id:[3;16],mc_id:[4;16],active:1,..Default::default()};
+        let mut intent=super::Intent::default();intent.arm(s,100);
+        assert_eq!(intent.entry(s),Some(s.mc));
+        assert_eq!(intent.poll(s,3,200),super::SitDecision::Held);
+        assert_eq!(intent.entry(crate::position::Sample{mc:[0.0;3],..s}),Some(s.mc));
+        for other in [crate::position::Sample{sender:8,..s},crate::position::Sample{world:3,..s},
+            crate::position::Sample{save_id:[5;16],..s},crate::position::Sample{mc_id:[6;16],..s}] {
+            assert_eq!(intent.entry(other),None);
+        }
+        intent.arm_native(s,300);assert_eq!(intent.entry(s),None);
+        intent.arm(crate::position::Sample{mc:[f64::NAN,0.0,0.0],..s},400);assert_eq!(intent.entry(s),None);
+        intent.arm(s,500);intent.reset();assert_eq!(intent.entry(s),None);
+    }
+
     use super::*;
     fn seated_sample()->crate::position::Sample {
         crate::position::Sample{sender:1,world:2,active:1,save_id:[3;16],mc_id:[4;16],

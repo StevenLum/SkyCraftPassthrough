@@ -1,3 +1,207 @@
+## 2026-10-12 one launcher for both games, plan before code
+
+User: "Can you make a single launcher for this game?" By Claude Code. A tool,
+not a change to the mod: no version change, no packet change.
+
+What exists: Skyrim is started with `skse64_loader.exe` in its install folder
+(Steam must be running), Minecraft with Prism Launcher 8.4, whose command line
+has `--launch <instance>` (read from its own `--help`); the instance is `26.3`.
+Prism is installed at `D:\Programs32\Prism - Minecraft\PrismLauncher` (from
+Windows' list of installed programs, which the script reads too).
+
+1. `tools\play.ps1`. Checks first, starts second, changes nothing:
+   - both launchers exist; Steam is running (if not: say so and stop, because
+     Skyrim started without Steam restarts itself without SKSE);
+   - the bridge file is the same in both games (hash) and which mod version
+     Minecraft has; a mismatch stops with "run install-build.ps1";
+   - a game that is already running is left alone and not started twice;
+   - then starts Skyrim through SKSE and Minecraft through Prism, and prints
+     the two things still done by hand: load the save in Skyrim, open the
+     world in Minecraft.
+   - `-Check` prints what it would start and starts nothing.
+2. `Play.cmd` in the project folder, so it can be double-clicked; it only
+   calls the script. One more line in `.gitignore`'s whitelist for it.
+3. Not done: loading the save or the world by itself (Prism 8.4 has no option
+   for a world, Skyrim none for a save); a desktop shortcut (outside the
+   project folder; the user can make one from `Play.cmd`).
+
+## 2026-10-12 healing, attempt by Claude Code (0.10.59), plan before code
+
+User: "Health potions do not work. Codex tried and failed 3 times, give it a
+try." One attempt, recorded in AGENTS.md.
+
+**What the logs say.** Report 20261012-052857, Skyrim's own numbers: maximum
+health 120 at the start, 100 after a `-20` at 290842593, 120 again right after
+the favourites click, 120 after the inventory clicks, and `-20` again at
+290936937, sixty seconds after the last drink. A bonus of 20 that lasts 60
+seconds is Skyrim's "Potion of Health": it raises the maximum (and the current
+health with it) for a minute. It is a "fortify" effect, not a "restore"
+effect. All three earlier attempts looked for restored health only, and .58
+skips fortify effects on purpose, so none of them could see this potion.
+Skyrim itself worked: its health went up by 20.
+
+Not known: whether the .58 hook catches a real restore-health potion (for
+example "Potion of Minor Healing"). No log has one in it.
+
+**Step, 0.10.59.**
+1. `damage.rs`, in the per-frame `arm`: read the temporary health bonus (the
+   same call already used for the maximum). Remember it per damage generation.
+   When it is higher than the frame before by at least half a point, queue an
+   ordinary heal event for Minecraft: the rise as a share of the health
+   without the bonus (20 of 100 is two hearts). The first value after a load
+   or a new pairing is only remembered, so a save loaded with the potion
+   still running does not heal. A potion drunk in a menu is seen when the menu
+   closes: the generation is kept through a menu. Log `SCENE_HEAL_FORTIFY`
+   for every change, up or down. Nothing is taken away in Minecraft when the
+   minute ends: simpler, and kinder than Skyrim.
+2. Same file: `SCENE_HEAL_EFFECT_RAW`, one line for every call of the potion
+   effect function on the player's character, before any filter (value,
+   amount, recover flag, effect and item form IDs), at most 200 a session. It
+   decides the open question about restore potions at the next test.
+3. Switch `fortify_healing`, number 24, last in both lists. `healing=off`
+   still turns all of it off.
+4. Tests: the rise rule (first value, rise, fall, noise, not finite); the
+   share. No packet change; protocol stays 33. Minecraft's receiver is
+   unchanged (it has never been seen applying a heal in play; the log line
+   `SCENE_HEAL_APPLY` will show it).
+
+Left out: showing the bonus as Minecraft's yellow extra hearts for a minute,
+which would be closer to Skyrim but needs a new kind of event in the packet.
+Backlog.
+
+## 2026-10-12 result: 0.10.58 healing rejected; extra attempt stopped
+
+User confirms consumed potion with Minecraft hearts missing; health never healed.
+Report052857: new effect hook installed1, switches all on, connection protocol33,
+no errors. Five item_use calls (favourites1/inventory4); qualifying effect request0,
+owner request0, capture/drop/apply0. All555 Minecraft health samples11.665022.
+This locates the observed failure before a qualifying restoration enters the queue.
+
+SCENE_HEAL_EFFECT_REQUEST is emitted only after effect_heal accepts metadata and
+native original returns, before forward_restore's paired lease gate. Thus no
+request does not prove no raw callback: slot bypass and filter exclusion remain
+unknown. Lease rejection alone would still log a qualifying request. Actual item/
+base/class and excluded callback values not observed; native health/max changes
+cannot establish potion type/cause. Do not change guesses into facts.
+
+The user-authorized additional healing attempt is exhausted. STOP healing changes,
+retain failed .30/.53/.58 evidence, write failure handover in STATUS first section.
+No repair code/build/install/retest/commit. Baseline87 Rust tests pass; gameplay
+failure overrides adapter fixtures. .58 packages/source remain. Chair outcome not
+reported; five return acknowledgements observed but cannot establish absence of
+falls. Accepted movement/menu/click/door/bed outcomes stay accepted.
+
+## 2026-10-12 result: separate .57 chair / .58 healing candidates built
+
+Final source/packages .58/protocol33, with87 Rust tests,113 Java rules and136 hook
+checks passing. Both packages verified against release DLL and Fabric manifest;
+all24 switch indices agree. Gameplay NOT TESTED. Accepted .56 committed5ac01c9
+on dev; these two candidates remain uncommitted. User alone installs/tests.
+
+The new healing hook observes actual requested restoration on ordinary
+ValueModifierEffect before native code can lose instant-effect metadata, preserving
+one native call unchanged. A thread-local guard stops owner6 counting the same
+request inside that call. Existing full-health fraction/menu lease/ack queue and
+normal-regeneration filter remain. Effect metadata/player logs show whether the
+hook was reached even if a stale menu/pair prevents forwarding. Optional hook
+failure degrades to the prior route; effect_healing=off rolls back this step.
+Only the base effect table is hooked; alternate effect classes/food/spells untested.
+
+Chair .57 uses the original map and pre-seat point after standing, with verified
+native hold/fresh terrain support/NPC clearance before recovery. Prior real
+acknowledgements15-141ms fit the500ms clearance window; actual blocked chair/table
+and stool/NPC outcome remains untested. chair_return=off rolls back separately.
+Focused test instructions are at README top. If either extra attempt fails in
+play, stop and hand over; authorization does not allow further guessed repairs.
+
+## 2026-10-11 potion effect capture (candidate 0.10.58), plan before code
+
+User authorizes one further healing attempt after .30/.53 failures. Read-only
+installed runtime diagnosis found a concrete bypass: ValueModifierEffect
+ModifyActorValue slot0x20 calls Actor::ModActorValue directly (AE38468), whereas
+.53 hooks ActorValueOwner virtual slot6. ModifyOnStart/Update dispatch effect
+slot0x20. Thus ordinary potions never reach the old hook. No full-health gate was
+found in this effect path; capture requested restoration rather than native delta.
+
+1. Optional resolve AE206143 ValueModifierEffect primary vtable; configure/install
+ slot0x20 under existing install mutex/VirtualProtect pattern. Missing address
+ keeps prior path, logs unavailable, doesn't stop movement. ABI from pinned
+ CommonLib: (effect,actor,float amount,ActorValue), sentinel0xFFFFFFFF resolves
+ effect.actorValue+0x90. ActiveEffect.baseEffect comes via effect+0x48 then+0x10;
+ flags+0x68 kRecover bit1 chooses temporary vs damage modifier. Capture only
+ finite positive resolved health24 with kRecover clear. Record item/base FormIDs
+ before native callback. Native callback invoked exactly once, unchanged arguments.
+2. Qualifying effect call owns capture via thread-local depth guard with RAII
+ restoration. Existing owner6 callback still invokes its original but skips capture
+ inside this guard. Effect then forwards actual requested amount once through the
+ existing fresh paired healing lease/menu queue; no native STATE lock during call.
+ Off/missing/nonqualifying effect retains old owner behavior. Never mutate native
+ health to make potions work. Clamp path still doesn't duplicate positive capture.
+3. New effect_healing switch23 appended Rust+Java; healing=off still disables all
+ healing forwarding. Hook/log requested effect metadata even when lease rejects,
+ distinguishing hook absence from stale player/pair/menu. Base ValueModifierEffect
+ only; alternate Peak/Accumulating/Dual subclasses and custom effects deferred.
+4. Tests emulate direct native modifier bypassing owner6 at full native health,
+ preserve one original call and amount despite no native delta; cover sentinel/
+ other AV/kRecover/negative/NaN/null metadata, nested owner duplicate suppression,
+ off rollback, RAII/nesting and stale/player/menu lease rejection. No wire change.
+ Update four versions/Cargo.lock, checker and records. .57 chair code unchanged.
+5. Rust tests before offline package-only .58 build,113 Java rules/136 hooks,
+ package/hash/manifest/switch/UTF-8 checks. Gameplay NOT TESTED; only user installs.
+ Final package includes .57 chair candidate. Focused user tests: Minecraft hearts
+ missing, inventory/favourites health potion count drops, hearts recover once on
+ resume even after10s menu hold. If this extra attempt fails in game, stop and
+ write failure handover. No repair commit until user acceptance.
+
+## 2026-10-11 result: chair return candidate 0.10.57 built
+
+81 Rust tests,113 Minecraft rules,136 hook checks pass; .57 packages verified.
+Actual gameplay NOT TESTED. Chair entry stays scoped to the original pair/save/
+cell. Once standing, the bridge holds native actor/controller at entry with zero
+velocity/gravity while supported terrain and NPC clearance/ack are pending. The
+original anchor maps geometry; a blocked native exit cannot redefine the map.
+Entry must have sampled floor; bounded sideways alternatives cannot cross walls
+or lack support. Pending scans expire after500ms and recheck live NPCs; suspension
+invalidates them. Native write read-back prevents ignored setters counting as held.
+No writes while seated. Beds/workbenches retain native grounding/alignment.
+chair_return=off rolls back this step. Separate healing candidate next. No commit.
+
+## 2026-10-11 chair exit to pre-seat feet (candidate0.10.57), plan before code
+
+Additional single attempt authorized explicitly. .50 native exit/.51 floor lift
+failed. Report225755 again has quick stand then2.4s blocked recovery, while Skyrim
+owns gravity and Minecraft is held. Failure is compatible with native exit motion
+against furniture/NPC; exact visual fall remains unmeasured. Instead of adopting
+that unstable native exit point, preserve the authoritative Minecraft point from
+before E activated the chair. Do not move Skyrim while state!=0.
+
+1. Remember chair entry feet only for intentional chairs (not bed/crafting),
+ with same pair/save/cell/revision scope. After native state0, apply existing
+ verified actor/controller placement at the remembered point, zero velocity and
+ gravity, preserving original gravity for ordinary suspend/release. Keep original
+ anchor for scan/render mapping. Pin until fresh clearance/ack; no free native
+ exit physics while waiting. Log before/held native feet/controller values.
+2. Terrain+NPC clearance uses the same .6x1.8 body boxes as Minecraft. First try
+ remembered point with existing<=.5 floor correction. If occupied by NPC, search
+ supported candidates on a .25 grid within1.5 blocks, nearest first. Require
+ terrain clearance across horizontal path; no teleport through walls/ceilings or
+ into NPC. No unsupported fallback. If blocked, hold and record offending box/NPC.
+ Normal doors/save recovery and bed/workbench alignment remain unchanged.
+3. Review additions before final build: require sampled floor even at entry;
+ recheck live NPCs before pending acknowledgement, expire geometry after500ms,
+ reset chair scans after blocked result/suspension, and verify actor/controller
+ read-back after native placement (ignored setters cannot count as held).
+ Existing recovery token/coordinate acknowledgement handles any correction;
+ require fresh complete scan and fixed mapping. Add chair_return rollback at bit22
+ in both adapters. On missing world scan support retain the .56 native path.
+4. Add tests for displaced/low native exit and one handshake, no writes while
+ seated, gravity restoration, scope/furniture exclusions, exact entry acceptance,
+ NPC fallback/support, wall/ceiling and bounded rejection. Native position writes
+ use existing verified ABI only, no new hook/packet. Version.57 all four locations.
+5. Rust tests then offline package-only build/Java rules/hooks; records/Backlog/ABI
+ and exact chair tests. Gameplay NOT TESTED. Only user installs. No repair commit
+ until acceptance. Healing is a separate next step after chair is packaged.
+
 ## 2026-10-11 result: 0.10.56 accepted; chair/healing extra attempts authorized
 
 User says "All working" for the focused left-click checks. Report225755 confirms
@@ -1446,23 +1650,37 @@ full_damage 1.75 and 7, and matching native health loss.
 
 ## Backlog (deferred by the user, not scheduled)
 
-Repair follow-ups updated 2026-10-11 (0.10.54 played):
+Repair follow-ups updated 2026-10-12 (.56 accepted; .58 healing FAILED):
 - Door exit without later teleport accepted; future update: face away from the
   exit door rather than somewhat toward it. Deferred, not implemented.
 - Chair exits still fail at lower chair/table and high stool/NPC. .50 exit and
   .51 terrain correction unsuccessful. User explicitly reopened ONE more attempt
   2026-10-11 after .56 acceptance. Native height/camera and exact terrain/NPC cause
-  unknown; diagnose first. Earlier failure handover remains in STATUS history.
+  unknown. .57 holds standing native actor at pre-seat Minecraft feet, checks
+  fresh supported terrain/NPC clearance and acknowledgement. Included in final
+  .58 packages; five returns measured in report052857, user outcome not reported.
+  No gameplay acceptance; chair_return rollback. Earlier failures kept.
 - E/WASD stand request, held entering E, focus/menu seating and seated-save recovery
   accepted. Native hand visibility .54 not separately confirmed.
 - Owned-bed grounding .52 accepted. Unowned-bed sleeping and workbench not tested.
+- Health potions: done, tested by the user on 2026-10-12 with 0.10.59 (report
+  20261012-143915). Restore-health potions go through the .58 hook, fortify
+  ones through the .59 bonus watch. Open, small: the raw effect log line
+  should skip requests of 0 (one standing effect used up its 200 lines in
+  seconds); food and healing spells not tested; the fortify bonus could be
+  shown as Minecraft's yellow extra hearts for its minute instead of a
+  lasting heal, which needs a new event kind in the packet.
 - Potion healing .30/.53 unsuccessful; stopped after two attempts. Hook installs
   but no restore callbacks. Left-click item use failed while E works; contextual
   .55 selection failed:52/52 clicks chose a passive renderer (other/pointer),
   never item_use. .56 skips passive layers and adds container item route; all
   take/equip/use/category tests accepted by user. Potion healing reopened for ONE
-  extra attempt 2026-10-11; native restore path diagnosis first. Stock mouse only;
-  continuous damage remains deferred.
+  extra attempt 2026-10-11: .58 captures ordinary ValueModifierEffect requests
+  which bypass owner6, using existing paired menu lease. User confirms consumed
+  potion/hearts missing but still no healing. Report052857 hook installed1,
+  qualifying requests/captures/apply0, MC health11.665022 constant. Extra attempt
+  FAILED and STOPPED; effect_healing rollback. Exact route/filter cause unknown.
+  Stock mouse only; continuous damage remains deferred.
 - Creative ascent/flight-off falling, flat-ground jumps, close enemy movement and
   bow wall/sky cases remain accepted. Do not repeat accepted checks.
 - Indoor non-calm scans, visible flying arrow, riding, mining/chopping and other
@@ -1482,9 +1700,12 @@ Combat and health:
   2026-10-11: two pauses cancelled 5 hits in report 20261011-155446).
 - Other incoming damage sources (falls, magic, scripted health changes) remain
   unverified. Potion healing failed in .30 and .53 gameplay: native restore hook
-  installed but no positive requests. Stopped after two approaches; actual effect
-  path at full native health unknown. Food/spells not tested; do not claim healing
-  forwarding works from the synthetic fixture.
+  installed but no positive requests. User authorized one extra attempt: .58 hooks
+  ordinary ValueModifierEffect slot32, whose direct native call bypasses owner6.
+  .58 FAILED real potions; extra attempt exhausted, STOPPED. Hook installed but
+  no qualifying requests. Cannot distinguish slot bypass/filter from current logs;
+  no new repair authorized. Food/spells/alternate effects not tested; synthetic
+  fixtures do not establish gameplay healing.
 - Bows hit Skyrim enemies since 0.10.44 (draw/hits accepted in 0.10.45;
   wall/empty shots accepted in 0.10.50): a straight-line
   shot resolved in Skyrim by geometry. Open there: crossbows, tridents and
