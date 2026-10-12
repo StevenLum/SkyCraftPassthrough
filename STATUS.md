@@ -1,4 +1,4 @@
-# Handover note: 2026-10-12 (project moved to "Vibe coding\SkyCraft attempt"; committed, being pushed), Claude Code
+# Handover note: 2026-10-12 (project moved to "Vibe coding\SkyCraft attempt"; committed and pushed), Claude Code
 
 This first section is the handover note. Everything below it is history.
 
@@ -8,7 +8,7 @@ This first section is the handover note. Everything below it is history.
   `D:\Documents\Vibe coding\SkyCraft attempt` (files moved up one level so
   they sit beside `.git` again; details in the newest MODLOG entry). The old
   path `D:\Documents\ChatGPT\Game modding` no longer exists.
-- State: committed on `dev`; push to GitHub in progress (see "Next").
+- State: done. Commit 5b5f4dd is on GitHub as both `dev` and `master`.
 - Files being changed: none
 - Attempt: not applicable
 - Waiting on the user for: nothing
@@ -16,10 +16,11 @@ This first section is the handover note. Everything below it is history.
 ## Versions
 - Source and packages: 0.10.59, protocol 33. Installed in the games: 0.10.59,
   **built at the old path** (see "Known problems").
-- Commits: everything up to 0.10.59, the launcher and the records are in the
-  commit that carries this note, on `dev`.
-- Remote: `origin` = github.com/StevenLum/SkyCraftPassthrough. Until this
-  step GitHub had only `master` at a9fc0fd.
+- Commits: everything up to 0.10.59, the launcher and the records are in
+  5b5f4dd on `dev`; this note's update is one small commit after it.
+- Remote: `origin` = github.com/StevenLum/SkyCraftPassthrough. `dev` and
+  `master` there both hold the current work (before: only `master`, at
+  a9fc0fd). Local `dev` follows `origin/dev`.
 - Checks: 89 Rust tests pass at the new location. Minecraft-side checks and
   the build not run here yet.
 
@@ -29,9 +30,10 @@ This first section is the handover note. Everything below it is history.
 layout"; "It's under here now D:\Documents\Vibe coding".
 
 ## Next
-1. Push `dev` to GitHub and move `master` forward to the same commit (a plain
+1. Pushed: `dev`, and `master` moved forward to the same commit (a plain
    fast-forward, nothing rewritten), so the repository's front page shows the
-   current work. The agent's choice, left to it by the user.
+   current work. The agent's choice, left to it by the user. Further commits
+   and pushes only when the user asks (AGENTS.md rule 3).
 2. Before the next play session: `.\tools\build-step5b.ps1 -Offline
    -PackageOnly` here, then the user runs `.\tools\install-build.ps1`.
 3. Chair exit (.57) still needs the user's play result.

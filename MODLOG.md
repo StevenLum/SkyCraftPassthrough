@@ -1,3 +1,24 @@
+## 2026-10-12 published to GitHub: dev and master at 5b5f4dd
+
+**Changed:** Records only (this entry, the handover note).
+
+**Why:** User: "Commit and push to github as it is"; the branch was left to
+the agent.
+
+**Tested how:** `git fetch`, then `git branch -vv`.
+
+**Result:** `git push origin dev` created the branch `dev` on GitHub;
+`git push origin dev:master` moved `master` from a9fc0fd to 5b5f4dd as a plain
+fast-forward. Local and remote `dev` and `master` all show 5b5f4dd.
+
+**Still broken / not tested:** See the entry below: the installed mod has to
+be built and installed again from the new folder.
+
+**Commit:** 5b5f4dd Passthrough 0.10.57 to 0.10.59, a launcher, and the
+project's new folder
+
+**Next:** Build and install from the new place before the next play session.
+
 ## 2026-10-12 project folder moved and flattened; committed for GitHub
 
 **Changed:** No source change. The user moved the project from
